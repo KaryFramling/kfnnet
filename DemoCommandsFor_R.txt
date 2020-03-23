@@ -1,0 +1,9 @@
+Start by double-clicking "StartR.RData"
+
+source("PendulumExperiments.R")
+classifier <- pendulumclassifier.new(rbf=TRUE, angle.ints=10, speed.ints=10)
+run.plt.agents(1,200,classifier,1.5,0.4,accumulating.trace=FALSE,trace.reset=FALSE, var.prefix="demo",dr=1.0,epsilon=0.1,visualize=TRUE)
+
+source("CartPoleExperiments.R")
+classifier <- cartpole.discretizer.new(rbf=TRUE, x.ints=6, theta.ints=6, dx.ints=6, dtheta.ints=6)
+run.cpt.agents(1, 100, classifier, 0.5, 0.7, accumulating.trace=TRUE, trace.reset=FALSE, var.prefix="demo",dr=1.0,epsilon=0.0,use.softmax=FALSE,visualize=TRUE)

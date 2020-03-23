@@ -1,0 +1,1045 @@
+History file of Kary Främling's NNET implementation in "R"
+==========================================================
+
+TO-DO
+-----
+
+
+- Implement possibility for greedy exploration after some episode 
+  limit - or more freely, which should be easier in "R" implementation 
+  than in Java implementation. 
+- Make Adaline function "train.with.delta" work with vector delta values. 
+
+March2020
+---------
+- Implemented RMSE-based stopping criterion in INKA (classification error based done earlier).
+- Fixed INKA bug when only one output (required "as.matrix" in a few places). 
+- Impemented sombrero-function training and visualisation with NRDF/INKA.
+
+6feb2020
+--------
+- Created some new utility functions into Functions.R for creating plots more easily, 
+  especially for illustration purposes of CIU.
+- Played around a little with plot3D package. Needs "library(plot3D)" for being available.
+
+4oct2019
+-------- 
+- Copied MNIST data files and utility script into the directory. Tested that 
+  "MnistUtilities.R" works fine. 
+- Took Iris data tests and experiments out from ContextualImportanceUtility.R
+  and put them into new IrisExperiments.R.
+- Created new source file "MnistExperiments.R" for starting to do INKA and other 
+  experiments with MNIST data set.
+
+10feb2019
+---------
+- Moved train.inka into RBF.R. For some reason there were problems to have 
+  it as a method of rbf, so left it as function that takes rbf object as 
+  parameter. 
+- Integrated the Explainable AI programming done over the last 2 weeks 
+  or so into kfnnet directory. 
+- Implemented functionality include: 
+  - contextual.IU: generic function for calculating CI and CU for any 
+    function approximator / black-box
+  - plot.CI.CU: function for plotting CI and CU for one instance and one
+    input
+  - train.inka: implementation of INKA algorithm from Kary Främling's 
+    PhD thesis
+  - Various CI/CY tests on simple functions and Iris data
+- Everything now in source file ContextualImportanceUtility.R. 
+  Should be split into right places.
+Not writing down work time spent anymore...
+
+12feb2008
+---------
+- Started modifying the functions in "NLMSforNRBF.R" in order to get 
+  some results on learning performance - hard to motivate use of 
+  NLMS if these results are not better for NLMS, let's see!
+- For sombrero, it looks like NLMS would be consistently better both 
+  for RBF and NRBF - RBF without NLMS even seems to work very badly - 
+  or too badly, needs checking
+- For Iris, it seems like RBF without NLMS and NRBF with NLMS would 
+  perform the best. When taking 100 iterations, NRBF with NLMS seems to 
+  be quite clearly the best. 
+~2h. work
+
+6feb2008
+--------
+- Corrected error in RBFclassifier$eval.with.wrap(), the same one as the 
+  one yesterday with setting "outputs" in the inherited method that 
+  mixed up the calculations. 
+~20 min. work
+
+5feb2008
+--------
+- Made RBFclassifier$eval() work with input matrices that contain 
+  more than one sample. Done with a loop, not very good...
+- Tested with Iris data. Setosa and virginica seem to be recognised 
+  very well but versicolor tends to be classified as virginica. 
+  However, when performing 200 episodes and learning rate 0.1 it seems 
+  like most samples are classified correctly (only saw one error when 
+  looking quickly through it, i.e. a versicolor that is "slightly" 
+  classified as virginica)
+- At least with 200 learning episodes, lr=0.1 there's always 5 versicolors 
+  classified as virginica, no matter how many RBFs are used (tried up to 
+  10 per dimension). So 4/dimension seems OK - maybe even less could perform 
+  as well? Apparently 3/dimension is as good. With 2/dimension there is 
+  already 8 misclassified versicolors. 
+~1h. work
+
+4feb2008
+--------
+- Apparently the RBFclassifier eval function did not automatically 
+  override the inherited eval-function. It had to be added to the list 
+  of functions of "RBFclassifier" in order to override correctly. Now 
+  there was some error in nlms.vs.nrbf.iris - but probably nothing 
+  serious. However, not all other tests need to be re-done also...
+- nlms.vs.nrbf.2D(), nlms.vs.nrbf.sombrero() work.
+- MountainCar, Pendulum, Cart-Pole apparently work as they should. 
+- Now nlms.vs.nrbf.iris also works. 
+~1h. work
+
+1feb2008
+--------
+- Tested with Mountain Car and it seems to work fine. 
+- With Pendulum it is not sure yet. No errors but learning does not seem 
+  to work as it should - maybe a learning parameter error rather than a 
+  bug? There's also some bug in visualizing the torque. 
+- Cart Pole seems to work as it should. 
+- Found the reason for the problem with Pendulum. Had just forgotten to 
+  update one variable name , i.e. "ins"->"inputs". 
+- But Pendulum learning behaviour is still not OK. What is the problem? 
+- Removed "normalize" parameter from constructor of RBFclassifier in order 
+  to be sure there was no name confusion with the instance variable in 
+  NeuralLayer. Now at least the Pendulum action-value function looks like 
+  it used to look, it seems to me. Also, it now balances perfectly 
+  already on 11th episode of the first test run so now it should work 
+  properly! There should still be some testing with the other tasks, 
+  though because they might still use the "normalize" parameter somewhere. 
+- Also tested that it works with Mountain Car and Cart-Pole. Same for 
+  nlms.vs.nrbf.2D() and nlms.vs.nrbf.sombrero(). 
+- Made Iris training work after a long search of a bug that turned out 
+  to be that iris[,1:4] gives a data.frame, not a matrix. That was 
+  sufficient to break the calculations. However, the learning result 
+  is not excellent (after 50 episodes), everything is classified as  
+  being "virginica". Have to do the randmisation of training samples 
+  to fix this but tuning of training parameters might also be a good idea. 
+  Or maybe there just isn't enough RBFs or rather RBFs that are not well 
+  located? 
+~6h. work
+
+31jan2008
+---------
+- Added function nlms.vs.nrbf.iris to NLMSforNRBF.R for doing experiments 
+  with Iris data. 
+- Modified RBF to use RBFclassifier as hidden layer instead of using 
+  NeuralLayer in order to access some pre-existing functionality in 
+  that class. It became a mess...
+- To make everything clearer, made RBFclassifier a subclass of NeuralLayer 
+  in the same way as Adaline, meaning that we inherit most stuff directly 
+  from NeuralLayer. At least works with test.rbf(), test.rbf.classifier(), 
+  nlms.vs.nrbf.sombrero() and nlms.vs.nrbf.2D(). MUST STILL BE TESTED 
+  WITH RL tasks!
+- Tested with pendulum task and at least there is no error. Needs more 
+  verification. 
+~3h. work
+
+21jan2008
+---------
+- Modified "nlms.vs.nrbf.sombrero" in "NLMSforNRBF" so that it now uses a 
+  grid of regularly distributed kernels. 
+- Removed the normalisation code in "RBF.R" and used the existing one in 
+  "NeuralLayer" instead. 
+~2h. work
+
+17jan2008
+---------
+- Created function "nlms.vs.nrbf.sombrero" in "NLMSforNRBF.R" that 
+  creates random training samples for sombrero function, trains an 
+  RBF net with them, evaluates output for plotting grid and finally 
+  plots out the resulting 3D-surface. It works but with only 5 
+  kernels the result is not yet very impressive. Will have to do 
+  for today!
+~1h. work
+
+16jan2008
+---------
+- Created functions "get.sombrero.3D" and "plot.sombrero.3D" in Functions.R. 
+  The first one is generally usable, the second one is mainly for 
+  remembering how to generate the 3D plot easily.
+~1h. work
+
+7jan2008
+--------
+- Added "use.bias" property to "NeuralLayer", which seems to work quite 
+  fine. It just adds an extra column of ones to the input matrix in the 
+  "eval" function. Of course, the weight matrix dimensions also have to 
+  correspond, i.e. there has to be one weight also for the bias input!
+- Nothing was modified in the "train" function of Adaline but it works 
+  directly (hadn't thought about this, actually!) because it just indeed 
+  works like one extra input with constant value. 
+~1h. work
+
+3jan2008
+--------
+- Created functions "sum.squared.error", "mean.squared.error" 
+  and "root.mean.squared.error" in 
+  "Functions.R" for calculating learning statistics.
+~1h. work
+
+2jan2008
+--------
+- Created "NLMSforNRBF.R" for performing tests on the use of 
+  NLMS as NRBF normalisation. 
+- Added new function "train.whole.set" for doing Widrow-Hoff training 
+  on one example at a time for a whole training set. This does 
+  it sequentially for the moment. For the moment, this function 
+  is still in "NLMSforNRBF.R".
+- Added new function "get.unique.random.indices" so that learning can 
+  be performed in random order on a training set. For the moment, this 
+  is still in "NLMSforNRBF.R".
+- THEN, I noticed that R's function sample(x) does exactly the same thing 
+  so I removed "get.unique.random.indices" for being obsolete...
+- Performed some test runs to see whether NLMS speeds up learning for 
+  a very simple regression task. Apparently it does and in quite a 
+  significant way. 
+~2h. work
+
+8jul2007
+--------
+- Started modifying CartPole for the Swing-Up variant. 
+- That now works just by setting limit to e.g. infinity (Inf). 
+- Created new class handcoded.swingupcartpole.controller that attempts 
+  to do something. At least it manages to "stay alive" for 107 seconds 
+  but it gets stuck at one end of the track. Another version swinged 
+  the pole up and made it turn with a good speed but ended by crashing 
+  against the limits. Anyway, getting a working handcoded controller 
+  may not be that useful here. 
+~1h. work (probably less)
+
+29dec2006
+---------
+- Added standard errors to Cart-Pole plot, with parameter for indicating 
+  if it should be used or not (default NO). 
+- Added standard errors to Pendulum plot, with parameter for indicating 
+  if it should be used or not (default NO). 
+~1h. work
+
+22dec2006
+---------
+- Programmed new function "get.first.over.limit" in CartPoleExperiments 
+  that returns an array of episode indices for the first episode that 
+  was "long enough", i.e. 240 seconds (four minutes) in experiments so far. 
+  This is as an alternative to just taking the mean up-time that may not 
+  be as significant in this task as for the other ones due to the 
+  deterioration after some episodes, probably because of the total 
+  lack of reinforcement feedback when the controller works. 
+~1h. work
+
+13dec2006
+---------
+- Tested "CartPoleExperiments.R" and made corrections to it. Now it seems 
+  to work as it should. 
+~0.5h work
+
+12dec2006
+---------
+- Created new file "CartPoleExperiments.R" as copy of 
+  "PendulumExperiments.R". Started modifying it but not tested yet. 
+~0.5h work
+
+4dec2006
+--------
+- Created new file "PendulumExperiments.R" as copy of 
+  "MountainCarExperiments.R" but did not modify it in any way yet. 
+- Started working on pendulum experiments; wrote function run.plt.agents
+  but did not test it yet. Contrary to Mountain-Car, this function is 
+  not in "experiments" file but in "PendulumLimitedTorque.R".
+- Continued working on pendulum experiments: now works for RBF. 
+~1h. work
+
+1dec2006
+--------
+- Added get/set methods for affine transformation to 
+  "PendulumLimitedTorque.R". 
+- Added limited support for "wrapped" input variables as for the angle 
+  in Pendulum task (only one wrapped input supported) into "RBFClassifier.R". 
+  This was necessary because with NRBF the old wrapping did not work at all 
+  because the division by the sum of RBF neuron outputs was not performed 
+  only once all values had been calculated. 
+~1h work
+
+24nov2006
+---------
+- Adjusted plot labels for Mountain-Car, OIV, lookup-table with arrows 
+  to indicate the different curves. 
+~0.5h work
+
+23nov2006
+---------
+- Made "plot.final.comparison" work for RBF plots with Mountain-Car in 
+  "MountainCarExperiments.R".
+~0.5h work
+
+21nov2006
+---------
+- Modified "plot.lines" function in "MountainCarExperiments.R" so that 
+  it doesn't plot the "with reset" plot for RBF. Also modified some other 
+  details. 
+- Some refactoring would be useful in the plotting functions, it is not 
+  very elegant for the moment with the "experiment.nbr" tests. 
+- Started doing "plot.final.comparison" but didn't finish, there's 
+  still a "subscript out of bounds" error. 
+~25min work
+
+19nov2006
+---------
+- Added some initial code for making RBF calculations into 
+  "MountainCarExperiments.R". There should still be some modifications 
+  to take into account the fact that replacing traces with reset 
+  are not used in this case. 
+~0.5h work
+
+14nov2006
+---------
+- Implemented the possibility of using "regular" offset for CMAC instead 
+  of the default random offset in all dimensions. Otherwise there seemed 
+  to be too much variation in the results depending on the CMAC used. 
+  When using the same saved CMAC for all simulations also showed that 
+  at least for some cases, the results were much worse than the old ones. 
+  This gives the dilemma of what saved CAMC to use? Should that first 
+  be optimised somehow? The "regular" approach may pose some problems 
+  also (who knows) but at least it is invariable and repeatable also 
+  for others. 
+~1h work
+
+10nov2006
+---------
+- Added check for NA and NaN in for MountainCar action - an error like this 
+  occurred during a simulation the night before. 
+~0.5h work
+
+8nov2006
+--------
+- Modified plotting of "final" plots in "MountainCarExperiments.R" to include 
+  "accumulating" traces. Missing results are also replaced by the 
+  "maximal" value (hardcoded to 150000 steps for the moment). 
+- Prepared, launched calculations for lookup-table and OIV in 
+  "MountainCarExperiments.R". 
+~1h work
+
+7nov2006
+--------
+- Modified plotting of basic plots in "MountainCarExperiments.R" to include 
+  "accumulating" traces. Missing results are also replaced by the 
+  "maximal" value (hardcoded to 150000 steps for the moment). 
+~1h work
+
+3nov2006
+--------
+- Changed name of "NIPS2006.R" to "MountainCarExperiments.R". 
+- Modified "MountainCarExperiments.R" so that experiments with accumulating 
+  traces can be performed. 
+~1h work
+
+20oct2006
+---------
+- Added visualisation into Mountain Car task, for showing the 
+  Mountain Car, action-value functions for each action,  
+  for max-action-value functions and action-value differences 
+  between the three actions. 
+~3h work
+
+18oct2006
+---------
+- Corrected bug in "DiscreteClassifier.R", where a test on zero class index 
+  had a "-1" term that it should not have had. Remains to see what this 
+  will mean for different tasks but at least cart-pole value function 
+  looks OK now. 
+- Added option to use accumulating trace into "EligibilityTrace.R". 
+  Hardcoded into EligibilityTrace that with accumulating trace, traces 
+  are never reset no matter what is the value of that property. 
+  Otherwise it will probably just lead to experiment bugs in the future. 
+  Also added some code for using accumulating traces in "pendulum" task. 
+- Noticed bug (?) in eligibility trace: when using accumulating trace 
+  with RBF, there was a dimension error that was due to a type difference 
+  between in the "inputs" vector. Setting the "dim" attribute to NULL 
+  corrected the problem. It is unclear whether this has caused any problems 
+  for replacing traces also (i.e. "pmax" function). 
+- RBF with accumulating trace seems to be doing quite OK with pendulum. 
+  The action-value difference surface is also quite smooth and nice! 
+- Added some code for using accumulating traces in "cart-pole" task.
+~2h work
+
+17oct2006
+---------
+- Added new function "create.input.matrix" in "Functions.R" that allows 
+  creating input value matrices where the values of some inputs go 
+  from a minimal to a maximal value with given steps, while the other 
+  inputs remain at given static values. 
+- Modified the code in "plot3d.output" function of "Visualisation.R" 
+  to use previous function. Works OK and is MUCH faster (i.e. 
+  practically instantaneous instead of half-second delay or so). 
+- Also modified the code in "plot3d.output" function of "Visualisation.R" 
+  to use "apply" function instead of for-loop. No noticeable change in speed 
+  but makes code a little bit shorter - and it should also be a little bit 
+  faster.
+- Added method "show.3d.surfaces" to pendulum visualiser. This leaves the old 
+  "show.action.values" method in case it is still useful, even though 
+  for the moment "show.3d.surfaces" does nearly the same thing (added 
+  plot titles, however, that indicate what they are. 
+- Now also added action-value plot by "max" operator and a difference 
+  plot to show the differences in action values between the two actions. 
+- Found parameter configuration that seems to work quite fine with RBF 
+  in cart-pole task. 
+- Also found that there MUST BE SOME BUG in discretizer - nothing happens 
+  in the first interval. 
+~4h work
+
+9oct2006
+--------
+- Tested giving small negative reward to pendulum when speed is over 
+  0.1. No conclusions on this yet, did not test for long. 
+- Copied over action-value plotting functionality from cart-pole. 
+  Interesting - there is a strange step around +/-pi that has to 
+  be understood before testing anything else! 
+- Got the strange step fixed by extending the evaluation of RBFs to 
+  +/-PI instead of limiting to neighbourhood around the lowest 
+  point. 
+~1h work
+
+3oct2006
+--------
+- Started working with RBFclassifier for cart-pole. 
+- Noticed bad bug - affine transformation was not applied in "eval" 
+  method of RBFclassifier! No wonder that learning doesn't work and 
+  seems "biased towards the left" in pendulum task. Fixed bug after 
+  noticing that the result of the affine transformation needed to be 
+  transformed into vector. Not good if ever we want to evaluate a 
+  whole matrix of input values, though... but fixed that by transposing 
+  the result instead of using as.vector. 
+~2h work
+
+30sep2006
+---------
+- Added test for NA and NaN values on action in PendulumLimitedTorque. 
+  That gave problems with normalised RBF and many kernels (30x30) when 
+  the speed became too high and the outputs of all RBF neurons 
+  therefore became too low for the numerical precision. 
+~3h work (took long time to understand that is.nan was not sufficient 
+    nor identical with is.na)
+
+19sep2006
+---------
+- Added support for RBFclassifier to pendulum with limited torque, 
+  including the "wrap-around" functionality for +/- angles. Seems to work. 
+  But it confirms the earlier observation that the reward function 
+  tends both to lead to a stationary position in downward direction 
+  or continuous acceleration. 
+- Corrected bug that made "overspeed" reward (-5) not to work, thus 
+  no "breaking at high speeds". 
+- With 20x20 RBF it at least learns to stay upright nearly immediately. 
+  Apparently 10x10 is not sufficient for this. Reward was cos(angle) in 
+  "goal range", 0 otherwise. 
+~1h. work
+
+15sep2006
+---------
+- Created new method "affine.transformation.new" in "Functions.R" for 
+  enabling input space transformations that are useful at least in the 
+  case of RBF classifiers.
+- Added new function "scale.translate.ranges" into "Functions.R" that 
+  returns an affine transformation object to perform the needed 
+  scaling and translation. After some quick tests, using this transformation 
+  gives great improvements to Mountain Car task. Spread value 0.1 
+  is now used (should test other values also) instead of 0.01 that was 
+  necessary due to the small interval of the velocity but too small for 
+  x-values. 
+~1 h. work
+
+12sep2006
+---------
+- Added code for testing RBF classifier and "init.centroids.grid". 3D 
+  visualisation seems to indicate that it works OK.
+- Moved "normalisation" functionality into NeuralLayer (from RBF classifier). 
+  After all, normalisation might be useful in other contexts also. Seems to 
+  work fine. 
+- Tested using RBF classifier in MountainCar. Seems to work quite OK but 
+  the big difference in scale between the x- and the speed values makes 
+  it difficult to choose a suitable "spread" value. This might need a 
+  Mahalanobis ditance or similar to overcome...
+~2 h. work
+
+5sep2006
+--------
+- Created new file "RBFclassifier.R" for the RBF hidden layer only. This 
+  should make it easier to switch from CMAC to RBF classification while 
+  leaving everything else unchanged. The other alternative would be to 
+  try to skip the "classifier" things and combine them into complete 
+  function approximators instead. Matter of taste - but having separate 
+  RBF classification is probably still a good idea! 
+- Added function "create.permutation.matrix" into "Functions.R" for creating 
+  a weight matrix with all permutations of values in the vectors of the
+  passed list of vectors. This is needed for initializing RBF centroids 
+  in a grid manner. At least tried to verify properly the correct operation 
+  of this function. 
+- Also wrote method "init.centroids.grid" into "RBFclassifier.R" but did 
+  not test it in any way. 
+~1h of work 
+
+31aug2006
+---------
+- Corrected bad bug in "cartpole.discretizer.new", limit values were directly 
+  copied as degrees when they should be in radians. But that doesn't seem 
+  to make things better...
+- Created new file "Visualisation.R" where utility functions will be 
+  added for different visualisation purposes. 
+- For cart-pole, found a CMAC configuration that seems very good. Already 
+  after 10 episodes, it can manage to stay up for more than a minute.
+  Parameters are: nbr.layers=20, lr <- 0.05, dr=0.95,lambda=0.8,epsilon=0.01,trace.reset=TRUE,use.softmax=F. Unfortunately it seems to start bumping into 
+  left wallfor many episodes after about episode 15. Must be some local 
+  minumum there... Changed lambda to 0.5, which seems to make learning 
+  slower. But does it avoid local minumum (apparently not)?? 
+  Also, these are conclusions 
+  based on only one agent each, which is not really sufficient. 
+~1h of work 
+
+30aug2006
+---------
+- Added "impose.limits" parameter to discretizer classes (ultimately 
+  to "discretizer.new" in Functions.R) so that the first/last intervals 
+  can be limited instead of extending to +/-infinity. 
+- Finally got wrap-around to work for CMAC in pendulum. It required 
+  using one interval less than usually in order not to "wrap" too 
+  far, limiting first/last angle interval to exact intervals and 
+  correcting a bug in the implementation of this that took a while 
+  to find. Doesn't seem to affect learning that much but who knows...
+  Launched run with 500 episodes but could not really see any improvement, 
+  so no successful results for this task yet even though there seems to 
+  be some learning occurring.
+~2h of work 
+
+29aug2006
+---------
+- Coded CMAC discretizer into "pendulum" task. Also tested just giving 
+  +1 reward in goal region, 0 otherwise. 
+- Noticed stupid bug in pendulum: speed discretizer was from zero to pi 
+  when it should be something like -0.5 to 0.5. Not surprising that 
+  learning didn't really work... (let's hope it will work better now!).
+- Added support for different control interval than simulation interval 
+  in pendulum task. At least the first run would seem to imply that this 
+  could improve learning a lot - but let's see! Not quite sure yet, used 
+  every four step...
+- Started implementing "wrap-around" at pi for CMAC in pendulum but did 
+  not finish. Should also punish excessive speeds in reward function!
+~1h of work (including testing)
+
+25aug2006
+---------
+- Implemented "boltzmann.new" in Functions.R for Boltzmann action 
+  selection. But with quite low epsilon in e-greedy it seems to work 
+  well enough, so this has not been tested yet. Still, it feels 
+  like this kind of action selection would be more appropriate for 
+  e.g. cart-pole. 
+- Tested Boltzmann, finally. With very low temperature (0.001) it learns 
+  quite rapidly. Remains to see if better than e-greedy. From today's 
+  experience, apparently not. e-greedy works better. 
+- Tried CMAC also but did not really get it to learn anything very 
+  interesting... This is quite annoying!
+~4h of work (including testing)
+
+24aug2006
+---------
+- Tried to understand why Sarsa learns to balance cart-pole so quickly. 
+  After some printing of weights etc., it does indeed learn to keep the 
+  pole upright after only 2 episodes (once after 4 episodes). But it only 
+  learns things very close to starting point because it never goes far 
+  from it. Now the problem is what to do with this - learning just seems 
+  too fast to get any useful results here?! PS! lambda was 0.5 here.
+- Takes about 4 episodes to learn with lambda=0. Lambda=1 apparently also 
+  learns in 2 episodes. Also, doesn't seem to be any difference between 
+  resetting or not the replacing trace. 
+- Found out bug in cart-pole task. Now the task seems to be challenging 
+  enough...
+- Did various fiddlng around to check things and get them to work properly. 
+~3h of work
+
+22aug2006
+---------
+- Created "CartPole.R" for cart-pole task. Task description used is 
+  Barto-Sutton-Anderson, 1983. So far, made the cart-pole "model", a 
+  quite decent visualiser and a random-action controller. 
+- Added method "set.discretizer" to DiscreteClassifier so that it is 
+  possible to replace the default equal-interval classifiers with 
+  freely distributed limits. 
+- Created new "uneven.discretizer.new" "class" that takes class intervals 
+  as parameter and then classifies in the same way as "discretizer.new".
+- Wrote discretizer for cart-pole, using Barto et al (1983) limits 
+  as defaults. Tested with test function, seems to work as it should. 
+- Noticed bug in Pendulum; the classifier used was not the intended one 
+  but directly a "DiscreteClassifier". At first glance it now seems to 
+  learn a little bit more but let's see...
+- Got Sarsa learning to run with cart-pole. Another question is if 
+  it works, no time to study that further in detail now...
+~4h of work
+
+18aug2006
+---------
+- Made Sarsa work with pendulum. The error yesterday was just due to 
+  an "is.null" test that should have been "!is.null". Now, the other 
+  thing is that learning with cos(angle) reward doesn't really work 
+  when using standard lookup-table and Sarsa. This will be more 
+  challenging!
+~1h of work
+
+17aug2006
+---------
+- Added classifier parameter to "plt.runner.new" object. If the classifier 
+  is not null, then the state vector is first passed to the classifier 
+  and then the returned vector is used instead.
+- Also did some other preparations for doing learning with Pendulum.
+~0.5h of work
+
+16aug2006
+---------
+- Created class "plt.runner.new" for all generic task running methods. 
+  Also made a function that uses them for running with handcoded 
+  controller. 
+~1h of work
+
+15aug2006
+---------
+- Created "visualizer class" for pendulum. Would work quite OK otherwise but 
+  graphics refresh rate is not sufficient. Current visualisation shows the 
+  pendulum "in real" but it could be better to show some waveform instead 
+  with time on X axis. Unfortunately the "wrapping" coordinate system 
+  at +/- PI makes the graph look not-so-nice.
+- Added "controller.new" to "Interfaces.R" in order to allow for universal 
+  and interchangeable controller objects. SarsaLearner (and probably some 
+  other "classes" too) needs to be modified accordingly, as well as the task 
+  execution code. 
+- Modified plotting so that it uses "plot" to erase previous step instead 
+  of redrawing old position in white. Quite nice, especially when using a 
+  small time step (e.g. 0.01s). 
+- Created hand-coded controller (handcoded.pendulum.controller.new) that 
+  succeeds sometimes. But it is not an obvious task to do in 15 minutes...
+  Needs some more thinking - and should I use all info about system dynamics 
+  or some reduced amount of information? Using all information somehow 
+  feels like cheating (?)
+- Managed to tune a simple hand-coded controller. Doesn't care about getting 
+  pendulum to zero degrees but at least keeps it upright. After small extra 
+  rule it now also gets it upright.
+~3h of work
+
+14aug2006
+---------
+- Created new task file "PendulumLimitedTorque.R" for the inverted 
+  pendulum with limited torque task. Implemented dynamics methods, 
+  seems to work. 
+- Did some tests for adding animation. Should be possible quite easily. 
+~2h of work
+
+5apr2006
+--------
+- Reduced step limit for MountainCar from 1000001 to 150000. Also 
+  added printing of x and v if the limit was reached.
+~0.5h of work
+
+4apr2006
+--------
+- Noticed that x,v are initialised to zero for first Mountain-Car episode. 
+  This could be one reason for the differences with Sutton's&singh's results? 
+  Corrected. Still, apparently this "bug" could be a way of producing 
+  some interesting behaviour. 
+  Now the problem is that I will have to re-launch all simulations if it 
+  turns out that there is some significant difference...
+- Ooops, previous remark is not valid. There was indeed a call on the 
+  "reset()" function lower down in "mountaincar.new". 
+~0.5h of work
+
+29mar2006
+---------
+- Simulation run finished for MC task, discounted reward, alpha=0.05, 
+  all lambdas. Worked fine. Seems about 30-40% slower with new 
+  version (i.e. the one that supports CMAC and other classifiers, not 
+  only lookup-tables). But this is just an impression - it could be due 
+  to many other reasons also. And it would be quite easy to re-optimise 
+  for the special case of lookup-tables. 
+- Copied new section into "Icann2006.R" for CMAC experiments, OIV version 
+  and launched first test run. 
+~0.5h of work
+
+26mar2006
+---------
+- Added method "get.total.classes" to CMAC. Had to do this because of 
+  error when replacing DiscreteClassifier with CMAC in MountainCar. 
+- First tests with CMAC seem to indicate that it could work. Still 
+  have to make more tests, optimize parameters etc.
+- Tested CMAC with discounted reward. Works with lr=0.01 (no infinite 
+  episodes) but is quite slow. It seems to have reached about 90 steps 
+  average after 100 episodes. 
+~0.5h of work
+
+24mar2006
+---------
+- Replaced "MountainCarDiscretizer" with "discrete.classifier" in 
+  "MountainCar.R" so that the classifier to use can be parametrised 
+  and changed to CMAC when needed. Tested, it works - except for 
+  BIMM. But that will have to be fixed later. 
+- Changed "classifier" into a parameter of function "sarsa.mc" and 
+  "bimm.mc". Also removed the "xints" and "vints" parameters that are no 
+  longer used. Tested, apparently works. 
+- Replaced "get.class" with "get.vector" for classifier and "go.state" 
+  with "go.state.vector" for SarsaLearner in MountainCar. It ssems to 
+  work but it also seems to have slowed things donw a lot. MAY NEED 
+  OPTIMIZATION!
+- Tested running 30 agents for 100 episodes - not sure how much slower 
+  it is. Not even sure if it is slower than before...
+~2h of work
+
+22mar2006
+---------
+- Renamed "FunctionApproximator.R" into "Interfaces.R", where all (for 
+  the moment) "interface classes" will be collected together. They are 
+  normally short so it should simplify getting an overview of them. It 
+  also reduces the number of files. 
+- Created new "interface class" called "TrainableApproximator" that 
+  defines minimal set of methods that have to be implemented by 
+  "trainable" objects.
+- Created file ".Rprofile" with ".First" method for executing the needed 
+  source files at startup. Also saved an empty workspace under the name 
+  "StartR.RData", which makes Rgui start up in that directory. This is 
+  needed because just changing the working directory is not sufficient 
+  for .Rprofile to be executed. 
+- Tested corrected "NewSarsaLearner". Apparently works fine  
+  at least for MountainCar. Doesn't seem to be that much slower than 
+  the old one neither. And could still be optimized. If no bigger issues 
+  turn up, this will completely replace the old SarsaLearner. For the 
+  moment, renamed file "NewSarsaLearner.R" into "SarsaLearner.R". 
+- Tested with function "run.randomwalk()" in "RandomWalk.R" and 
+  running "ContinuousGridTask.R". Works fine. 
+~2h of work
+
+21mar2006
+---------
+- Created new file "FunctionApproximator.R" to be used as a generic 
+  "interface" that just defines some methods that should be implemented 
+  by sub- or implementing classes. 
+- Made NeuralLayer, RBF, DiscreteClassifier and CMAC "classes" to be 
+  subclasses of "FunctionApproximator". Also did necessary adjustments, 
+  i.e. adding methods, implementing them etc. The point of all this 
+  is of course to be able to change these "on-the-fly". 
+- Corrected small bug in "NewSarsaLearner", where "curr.state" was still 
+  tested for -1 instead of testing for NULL. No test runs performed yet 
+  after this. 
+~1h of work
+
+17mar2006
+---------
+- Implemented CMAC. Only with random layer offset for the moment, no 
+  "regular" offset possibility. May not be needed, neither...
+- Modified function "mountaincardiscretizer.new" in MountainCar.R to 
+  use DiscreteClassifier. It works. Made the "mountaincardiscretizer.new" 
+  function extremely short!
+- Created new copy of SarsaLearner.R called NewSarsaLearner.R for modifying 
+  it so that it would use state vectors instead of state indices. It 
+  will be difficult to use CMAC otherwise!
+- Modified "EligibilityTrace.R" in such a way that resetting of trace 
+  works as for Singh&Sutton in the special case of 0/1 inputs even 
+  when using the continuous-value version. Tested quite thoroughly, 
+  seems to work. 
+- Also tried using "NewSarsaLearner" instead of SarsaLearner. No errors 
+  but has not finished after a reasonable time. Could be both due to 
+  a bug and/or to the manipulation of vectors at every step in this 
+  new version. Apparently it's not that quick neither after restoring 
+  old SarsaLearner. 
+~3h of work
+
+16mar2006
+---------
+- Moved "discrete.classifier.new" into its own file "DiscreteClassifier.R". 
+  Added new method "get.vector(inputs)" that returns an all-zero vector 
+  except for the selected class, which gets the value one. 
+~0.5h of work
+
+14mar2006
+---------
+- Added new "constructor" "discrete.classifier.new" into CMAC.R that 
+  can discretise inputs of any dimension. Tested, seems to work OK. 
+  This should actually be separated from CMAC. A good test case would 
+  be to replace the "mountaincardiscretizer" with this.
+~1.5h of work
+
+13mar2006
+---------
+- Added parameters to function "run.mc.agents" in Icann2006.R so that 
+  it becomes easy to launch tests with other parameters than those in 
+  Singh&Sutton. 
+- Same thing for "calculate.all" function.
+- Added code for tests with discounted reward.
+- Created new file "CMAC.R" but no implementation yet.
+~1h of work
+
+10mar2006
+---------
+- Parameterized result variable prefixes in "Icann2006.R" so that it 
+  becomes easier to perform different test series. 
+~1h of work
+
+9mar2006
+--------
+- Made first plotting with all alpha&lambda values in two sub-plots, 
+  in the same way as in Singh&Sutton.
+- Surprising instability of results with no trace reset with bigger 
+  alphas. Probably because the traces become too big, i.e. their sum 
+  grows bigger than one. Tried to fix this for a while with NLMS-based 
+  methods but it is not obvious at all to solve...
+~4h of work
+
+8mar2006
+--------
+- Made the "Icann" test functions work properly so that they generate 
+  the result matrices into variables with well-specified names depending 
+  on alpha and lambda used. 
+- Made "Icann" plotting functions work better so that the display area 
+  is now scaled properly no matter which graph is drawn first. Also added 
+  labels etc.
+~2h of work
+
+6mar2006
+--------
+- Worked a little on "Icann" tests. Created initial plot with confidence 
+  intervals.
+~1h of work
+
+3mar2006
+--------
+- Created new file "Icann2006.R" for experiments on replacing eligibility 
+  traces without resetting unused actions. 
+- Added option into EligibilityTrace for deciding if trace should be 
+  reset for unused actions. Default "FALSE". Also added this as parameter 
+  for the Mountain Car running function. 
+- Moved functions run.linearwalk and run.mountaincar into their own 
+  R-files from main.R
+- Programmed function icann.mountaincar in "Icann2006.R" for doing 
+  all tests with different "best" learning rates and lambda values. 
+  Launched the whole series overnight, let's see how it goes. 
+~3h of work
+
+1mar2006
+--------
+- Created new file "RandomWalk.R" for repeating the tests with eligibility 
+  traces of Singh&Sutton. Seems to work, now I need to get the same 
+  RMSE measurements as they used. OOPS, apparently not possible - they 
+  use TD(lambda), not action-value learning...
+~2h of work
+
+15feb2006
+---------
+- Tested different ways of doing "real" inheritance yesterday. Found 
+  out some pretty noce mechanisms, will now try to use them to get 
+  Adaline be a "sub-class" of NeuralLayer. 
+- Implemented "class-hierarchy" for Adaline/NeuralLayer and corrected 
+  bug in Adaline "train" (type error in some cases, don't know why it 
+  popped up now?). Thanks to this, removed a lot of code from Adaline.R 
+  that is now inherited from NeuralLayer.
+- Moved eligibility trace completely into NeuralLayer from SarsaLearner. 
+  Now it should be quite easy to implement identical treatment of discrete
+  and continuous-valued versions with trace. 
+- Added new method "set.current.action" into EligibilityTrace, which 
+  allows using discrete action but conntinuous-valued inputs (state 
+  variables). This will be needed for function approximators. 
+- Modified Adaline train.with.trace into train.with.delta, which takes 
+  a delta (error) value to be used for all outputs or a vector of delta 
+  values with one value per output. The "one value per output" version 
+  does not work yet - needs to be repaired! 
+~5h. work
+
+3feb2006
+--------
+- Tried to remember what was going on after programming in Java etc. 
+  for nearly three weeks. 
+- Corrected bug in Adaline, method "train.with.trace" where the 
+  NLMS would not have worked properly. This probably hasn't made 
+  any difference so far because only STM in BIMM uses it here, but 
+  since STM doesn't use a trace, it doesn't make any difference 
+  anyway. 
+~1h. work
+
+13jan2006
+---------
+- Created LookupTableEstimator.R. Made something like 50% of the 
+  implementation. But the whole procedure of putting trace into neural 
+  layer - or at least into estimator - will require some thinking before 
+  getting everything to work properly again. 
+~1h. programming
+
+11&12jan2006
+------------
+- Made tests on continuous grid task with ordinary discretiser and 
+  "lookup-table". Also programmed test with continuous eligibility trace.
+- Merged old eligibilty trace implementation into new one. Deleted old 
+  implementation.
+- Cleaned up methods a little in SarsaLearner.R
+- Started modifying things in ContinuousGridTask.R in order to use a 
+  controller with RBF (or other) kind of function approximator. 
+  This also caused some modifications in SarsaLearner. The best thing 
+  would be to integrate everything into SarsaLearner instead of 
+  creating a new "class". Should be possible by instead creating an 
+  "estimator" class that combines discretisation and Adaline, i.e. a 
+  lookup-table estimator. 
+~3h. programming
+
+10jan2006
+---------
+- Implemented Sarsa with "continuous grid world" and discretisation. 
+- Also tested and wrote down commands needed for plotting "value-function" 
+  as contour plot. Also tested 3D-plot - very simple with "surface3d" when 
+  the Z-coordinate matrix is ready. 
+~2h. programming
+
+3jan2006
+--------
+- Programmed classical, discrete grid world ("GridTask.R") to be able to 
+  compare eligibility trace implementations. There doesn't seem to be any 
+  difference for deterministic 20x20 grid, maybe slight advantage to 
+  classical implementation in stochastic case (0.2). Anyway, these tests are 
+  not sufficient yet.
+- Created new file "WeightEligibilityTrace.R" for implementing continuous-
+  valued eligibility traces for function approximators like neural 
+  networks. 
+~2h. programming, ~30min. testing
+
+2jan2006
+--------
+- Created simple continuous "grid" (no grid actually...) task 
+  "ContinuousGridTask.R".
+- Tested "LinearWalk" without setting trace to zero for unused actions. 
+  It doesn't really seem to make any significant difference in this task, 
+  at least.
+- Tested "MountainCar" without setting trace to zero for unused actions. 
+  It doesn't really seem to make any significant difference in this task
+  neither. Tested with 100 episodes, 20 agents. Some more testing with more 
+  agents and longer episodes as well as grid worlds are still needed to 
+  confirm the result. 
+- Left out the zero setting, this MUST BE REMEMBERED IF REPORTING NEW 
+  EXPERIMENTAL RESULTS!
+~30min. programming, ~1h. testing
+
+30dec2005
+---------
+- Completed RBF, got evaluation to work correctly, also with input matrices 
+  containing any number of rows (samples). Corrected Adaline bug on the	
+  way. This includes converting vector-type input data into matrix-type, 
+  otherwise the cross-product doesn't work. 
+~2h. programming
+
+29dec2005
+---------
+- Started implementing RBF network (file "RBF.R"). 
+~1h. programming
+
+28dec2005
+---------
+- Created new file "NeuralLayer.R" that implements a generic layer 
+  of a neural net.
+- Activation functions weighted sum, Euclidean (squared) distance 
+  implemented
+- Output functions multiplication by one, sigmoid, Gaussian and IMQE 
+  implemented. 
+- Quite a handy test for needed parameters to functions, e.g. 
+  "spread" parameter for kernel functions. 
+~2h. programming
+
+21dec2005
+---------
+- Made "real" tests (many agents, episodes etc.)
+- Implemented easy parametrisation in "Main.R" and file saving 
+  for storing results to text files. 
+- Compiled "R" from source on Toneco and dialog.hut.fi. Installed 
+  "R" for all users on dialog.hut.fi. It is definitely quicker than 
+  my old DELL laptop but hard to tell how much yet...
+~3h. programming
+
+20dec2005
+---------
+- Created LinearWalk.R file for the linear walk task used as 
+  initial test. Works both with Sarsa and BIMM. 
+- Removed separate testing code both for Sarsa and BIMM.
+- Noticed bug in BIMM and spent LOADS of time trying to locate it. 
+  The bug was that SLAP was applied for input vector of previous 
+  state - no wonder that it didn't work properly...
+  Now it seems to work fine for LinearWalk - but not for MountainCar 
+  yet...
+- MountainCar had another bug - forgot to replace Sarsa agent with 
+  BIMM agent in one place... Now it seems to work. 
+- Put all "execution code" into functions in "Main.R" to avoid 
+  unexpected running of different functions in various places. 
+  Both MountainCar and LinearWalk seem to work OK. 
+~7h. programming
+
+19dec2005
+---------
+- Corrected bug in setting "lambda" for SarsaLearner in "para-setup".
+- Continued implementing BIMM.R, added a certain number of methods. 
+- Implemented SLAP and SHAP. Due to the change in method/control flow 
+  compared to Java implementation, external "slapper" and "shapper" objects 
+  now take care of slapping and shapping. This is actually an 
+  improvement because it externalizes domain knowledge away from 
+  BIMM itself. 
+- Made a first test with the same test application as for Sarsa but 
+  without SLAPing yet. Works, but there must still be loads of bugs...
+- Implemented first test version of "slapper". At least it does not 
+  get into an infinite loop...
+- Still a lot of testing required!
+~3h. programming
+
+2dec2005
+--------
+- Finished shortening "public list" for Adaline. 
+~15 min. programming, testing
+
+24nov2005
+---------
+- Created new file "BIMM.R", started implementing. 
+- Shortened "public list" for Adaline to get it more compact and readable. 
+  Not completely finished yet. 
+30min. programming
+
+22nov2005
+---------
+- Added e-greedy policy class to "Functions.R"
+- Finished first implementation of SARSA. Tested with simple 
+  "linear" state space. Eligibility trace not used yet! 
+- Implemented, tested eligibility trace. Seems to work perfectly. 
+  It is here implemented in a much more elegant way than in the Java 
+  version. Then again, this implementation only works for Adalines - 
+  or at least it would take some more thinking to use it with other 
+  function approximators. And eligibility traces are naturally usable 
+  only for lookup-table tasks anyway...
+- Implemented SARSA (with OIV and without) for Mountain Car. Had some 
+  strange problem which took about an hour to solve - if there was 
+  really a programming problem and not just the Emacs "R" buffer running 
+  too full or something else that made calculations slow down. 
+  Now seems to work fine. Not sure that it is faster than the Java 
+  implementation, though (too long since I did the runs with Java version). 
+~7h programming. 
+
+21nov2005
+---------
+- Continued developing the Adaline class, started some month ago 
+  or so. 
+- Implemented "train" method both with standard LMS and with NLMS. 
+  Also included a "mixtw" property for indicating that this Adaline 
+  is used in a "mixture model" with weight "mixtw". This is necessary 
+  in BIMM, for instance, where the STM Adaline's weights should be 
+  adjusted independently of the LTM's weights. 
+- Moved Adaline code into separate file "Adaline.R".
+- Implemented MountainCar as "R"-class (if allowed to call it so...)
+- Implemented Handcoded Controller for Mountain Car as "R"-class. Works 
+  fine.
+- Added generic "Discretizer" class into "Functions.R"
+- Created new file "SarsaLearner.R". Some functionality implemented, 
+  i.e. about 70%. Eligibility trace is implemented. 
+~6h programming, testing. 
+
