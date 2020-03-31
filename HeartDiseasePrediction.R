@@ -141,48 +141,37 @@ Accuracy$svm <- svmConfMat$overall['Accuracy']
 
 
 # Train INKA with Heart Disease Prediction data.
-heart.disease.inka <- function() {
+heart.disease.inka <- function(n.rbfs.to.test=1) {
 
   # Do necessary pre-processing here. First numeric values to [0,1]
-  
   # Creating dummy variables is converting a categorical variable to as 
   # many binary variables as here are categories.
-  dummies_model <- dummyVars(num ~ .,data=tD)
-  tD <- predict(dummies_model, newdata = tD)
-
+  dummies_model <- dummyVars(num ~ .,data=trainData)
+  tD <- predict(dummies_model, newdata = trainData)
+  preProcess_range_model <- preProcess(tD, method='range')
+  tD <- predict(preProcess_range_model, newdata = tD)
+  targets <- as.matrix(as.numeric(trainData$num)-1)
+  
   # Do same for test set.
-  testD <- predict(preProcess_range_model, newdata = testData)
-  testD <- predict(dummies_model, newdata = testD)
+  testD <- predict(dummies_model, newdata = testData)
+  testD <- predict(preProcess_range_model, newdata = testD)
+  targets.test <- as.matrix(as.numeric(testData$num)-1)
   
   # Create in/out matrices
   t.in <- tD
-  targets <- as.matrix(as.numeric(trainData$num)-1)
   n.in <- ncol(t.in)
   n.out <- 1
   #set.seed(10)
-  rbf <-
-    rbf.new(n.in,
-            n.out,
-            0,
-            activation.function = squared.distance.activation,
-            output.function = imqe.output.function)
-  rbf$set.nrbf(TRUE)
-  #aff.trans <- scale.translate.ranges(in.mins, in.maxs, c(0,0,0,0), c(1,1,1,1))
-  ol <- rbf$get.outlayer()
-  ol$set.use.bias(FALSE)
-  rbf$set.spread(1) # d^2 parameter in INKA
-  c <- 0.01 # The "c" parameter in INKA training, minimal distance for adding new hidden neuron.
-  n.hidden <-
-    train.inka(
-      rbf,
-      t.in,
-      targets,
-      c,
-      max.iter = 50,
-      inv.whole.set.at.end = F,
-      classification.error.limit = 13
-    )
-  # Calculate error measure etc.
+  
+  # Create and train RBF with INKA
+  rbf <- find.best.inka(n=n.rbfs.to.test, train.inputs=t.in, train.outputs=targets, max.iter=50, 
+                        inv.whole.set.at.end=F, classification.error.limit=20, 
+                        rmse.limit=NULL, activation.function=squared.distance.activation, 
+                        output.function=imqe.output.function, nrbf=T, use.bias=F, 
+                        spread=1, c=0.01) #, test.inputs=testD, test.outputs=targets.test
+
+    # Calculate error measure etc.
+  n.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons is interesting to know.
   y <- rbf$eval(t.in)
   #classification <- (y == apply(y, 1, max)) * 1
   nbr.errors <- sum(abs(targets - round(y))) # How many are mis-classified
@@ -191,7 +180,6 @@ heart.disease.inka <- function() {
   
   # Statistics for test data set.
   y.test <- rbf$eval(testD)
-  targets.test <- as.matrix(as.numeric(testData$num)-1)
   nbr.errors.test <- sum(abs(targets.test - round(y.test)))
   inkaConfMat <<- confusionMatrix(as.factor(round(y.test)),as.factor(targets.test))
   Accuracy$inka <<- inkaConfMat$overall['Accuracy']  

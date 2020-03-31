@@ -1,6 +1,7 @@
 # Tests and utilities for Iris data set. 
 #
-# 4 input variables, three possible Iris classes
+# 4 input variables, three possible Iris classes. 
+# For caret models, see https://rpubs.com/ChristianLopezB/Supervised_Machine_Learning
 #
 # Created by Kary Främling 4oct2019
 #
@@ -79,48 +80,64 @@ iris.rbf.grid.test <- function() {
   points(instance.values[xi], y[yi], pch = 1, col = "red")
 }
 
-# Train INKA with Iris data.
-iris.inka.test <- function() {
+# Train INKA with Iris data, get best network from a number of tested ones.
+iris.get.best.inka <- function(n.rbfs.to.test=1) {
   n.in <- 4
   n.out <- 3
   t.in <-
-    as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
-  in.mins <- apply(t.in, 2, min)
-  in.maxs <- apply(t.in, 2, max)
+    as.matrix(iris[, 1:n.in]) # Iris data set apparently exists by default in R
   setosas <- (iris[, 5] == "setosa") * 1
   versicolors <- (iris[, 5] == "versicolor") * 1
   virginicas <- (iris[, 5] == "virginica") * 1
   targets <- matrix(c(setosas, versicolors, virginicas), ncol = 3)
-  rbf <-
-    rbf.new(n.in,
-            n.out,
-            0,
-            activation.function = squared.distance.activation,
-            output.function = imqe.output.function)
-  rbf$set.nrbf(TRUE)
-  #aff.trans <- scale.translate.ranges(in.mins, in.maxs, c(0,0,0,0), c(1,1,1,1))
-  ol <- rbf$get.outlayer()
-  ol$set.use.bias(FALSE)
-  rbf$set.spread(0.1) # d^2 parameter in INKA
-  c <-
-    0.01 # The "c" parameter in INKA training, minimal distance for adding new hidden neuron.
-  n.hidden <-
-    train.inka(
-      rbf,
-      t.in,
-      targets,
-      c,
-      max.iter = 20,
-      inv.whole.set.at.end = F,
-      classification.error.limit = 0
-    )
-  # Calculate error measure etc.
-  y <- rbf$eval(t.in)
-  classification <- (y == apply(y, 1, max)) * 1
-  nbr.errors <-
-    sum(abs(targets - classification)) / 2 # How many are mis-classified
-  #cat("nbr.errors = ", nbr.errors, "\n")
-  #cat("Number of hidden neurons: ", n.hidden, "\n")
+  rbf <- find.best.inka (n=n.rbfs.to.test, train.inputs=t.in, train.outputs=targets, max.iter=20, 
+                         inv.whole.set.at.end=F, classification.error.limit=0, 
+                         rmse.limit=NULL, activation.function=squared.distance.activation, 
+                         output.function=imqe.output.function, nrbf=T, use.bias=F, 
+                         spread=0.1, c=0.01, test.inputs=NULL, test.outputs=NULL)
+  
+  # For getting statistics:
+  # h <- rbf$get.hidden()
+  # n.hidden <- nrow(h$get.weights()) # Number of hidden neurons
+  # y <- rbf$eval(t.in); classification <- (y == apply(y, 1, max)) * 1; nbr.errors <- sum(abs(targets - classification)) / 2
+  # print(paste("Number of hidden neurons:", n.hidden))
+  # print(paste("Number of classification errors:", nbr.errors))
   return(rbf) # Return trained RBF network
 }
 
+iris.caret.models <- function() {
+  # Create training and test sets
+  inTrain<-createDataPartition(y=iris$Species, p=0.75, list=FALSE) # 75% to train set
+  training.Iris<-iris[inTrain,]
+  testing.Iris<-iris[-inTrain,]
+  preObj<-preProcess(training.Iris[,-5], method = c("center", "scale"))
+  preObjData<-predict(preObj,training.Iris[,-5])
+  modelFit<-train(Species~., data=training.Iris, preProcess=c("center", "scale"), method="lda")
+  #Predict new data with model fitted
+  predictions<-predict(modelFit, newdata=testing.Iris)
+  
+  #Shows Confusion Matrix and performance metrics
+  confusionMatrix(predictions, testing.Iris$Species)
+  
+  kfoldcv <- trainControl(method="cv", number=10)
+  performance_metric <- "Accuracy"
+  
+  #Linear Discriminant Analysis (LDA)
+  lda.iris <- train(Species~., data=iris, method="lda", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+
+  #Classification and Regression Trees (CART)
+  cart.iris <- train(Species~., data=iris, method="rpart", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  
+  #Support Vector Machines (SVM)
+  svm.iris <- train(Species~., data=iris, method="svmRadial", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  
+  # Random Forest
+  rf.iris <- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  
+  # Summary of results
+  results.iris <- resamples(list(lda=lda.iris, cart=cart.iris,  svm=svm.iris, rf=rf.iris))
+  summary(results.iris)
+  
+  # Plot results
+  dotplot(results.iris)
+}

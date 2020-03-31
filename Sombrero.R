@@ -76,6 +76,21 @@ sombrero.knn <- function() {
   rmse.knn <<- RMSE(test.targets,zvals)
 }
 
+# Use Random Forest. 
+sombrero.rf <- function() {
+  #rfModel <- train(z ~ ., data=trainData, method = 'rf') # This works better
+  # library(randomForest)
+  # rfModel <- randomForest(z ~ .,
+  #                         data=trainData,
+  #                         importance=TRUE,
+  #                         ntree=5000)
+  zvals <- predict(rfModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
+  persp(x, y, z)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.rf <<- RMSE(test.targets,zvals)
+}
+
 # Test using Neural Nets package directly
 sombrero.nnet <- function() {
   preProcess_range_model <- preProcess(trainData, method='range')

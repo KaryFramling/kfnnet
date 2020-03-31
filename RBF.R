@@ -93,7 +93,8 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
 # - rmse.limit: If specified, traning ends when RMSE between traget values and output values goes under (or equals)
 #   the given limit. 
 train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1, 
-                       inv.whole.set.at.end=T, classification.error.limit=NULL, rmse.limit=NULL) {
+                       inv.whole.set.at.end=T, classification.error.limit=NULL, rmse.limit=NULL, 
+                       test.inputs=NULL, test.outputs=NULL) {
   
   # Initialize set of remaining (not yet used for creating hidden neuron) traning examples. 
   # Set of used examples is initially empty.
@@ -168,30 +169,24 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
     w <- qr.solve(h.out, targets.used)
     ol$set.weights(t(w))
     
-    # Check if classification error goal has been achieved, for the moment 
-    # for training set only.  
+    # Check if error goal has been achieved.  
+    if (is.null(test.inputs)) inps <- train.inputs else inps <- test.inputs
+    if (is.null(test.outputs)) outps <- train.outputs else outps <- test.outputs
+    y <- rbf$eval(inps)
     if ( !is.null(classification.error.limit) ) {
-      y <- rbf$eval(train.inputs)
-      # If there's only one output, then there are two classes indicated by 0 or 1 value. 
-      # Then classification error is calculated differently
-      if ( ncol(train.outputs) == 1) {
-        nbr.errors <- sum(abs(train.outputs - round(y)))
-      }
+      if ( ncol(outps) == 1) {perf <- sum(abs(outps - round(y)))} # Should maybe restrict to 0,1?
       else {
         classification <- (y == apply(y, 1, max)) * 1
-        nbr.errors <- sum(abs(train.outputs - classification)) / 2 # One error gives sum on 2. 
+        perf <- sum(abs(train.outputs - classification)) / 2 # One error gives sum on 2. 
       }
-      # Stop training if error is small enough.
-      if ( nbr.errors <= classification.error.limit ) 
+      if ( perf <= classification.error.limit ) # Stop training if error is small enough.
         break
     }
-    
-    # Check if RMSE goal has been achieved, on training set for the moment.
-    if ( !is.null(rmse.limit) ) {
-      y <- rbf$eval(train.inputs)
-      rmse <- root.mean.squared.error(train.outputs, y)
-      if ( rmse <= rmse.limit ) {
-        break
+    else {
+      # Check if RMSE goal has been achieved, on training set for the moment.
+      if ( !is.null(rmse.limit) ) {
+        perf <- root.mean.squared.error(outps, y)
+        if ( perf <= rmse.limit ) break # Stop training if error is small enough.
       }
     }
   }
@@ -204,6 +199,62 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
     ol$set.weights(t(w))
   }
   return(nrow(hl$get.weights())) # Return number of hidden neurons created
+}
+
+# Create "n" RBF nets with given parameters and return the one that performs the best
+find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1, 
+                           inv.whole.set.at.end=T, classification.error.limit=NULL, 
+                           rmse.limit=NULL, activation.function=squared.distance.activation, 
+                           output.function=imqe.output.function, nrbf=T, use.bias=F, 
+                           spread=0.1, c=0.01, test.inputs=NULL, test.outputs=NULL) {
+  # Get number of inputs and number of outputs
+  n.in <- ncol(train.inputs)
+  n.out <- ncol(train.outputs)
+  
+  # Iterate until best one os found
+  best.rbf <- NULL
+  best.perf <- NULL
+  best.n.hidden <- NULL
+  for ( i in seq(1:n) ) {
+    # Create new RBF
+    rbf <- rbf.new(n.in, n.out, 0, activation.function, output.function)
+    rbf$set.nrbf(nrbf)
+    ol <- rbf$get.outlayer()
+    ol$set.use.bias(use.bias)
+    rbf$set.spread(spread) # d^2 parameter in INKA
+    
+    # Train
+    n.hidden <- train.inka(rbf, train.inputs, train.outputs, c, max.iter, 
+                           inv.whole.set.at.end, classification.error.limit, 
+                           rmse.limit, test.inputs, test.outputs)
+    # If better than previous, replace best.rbf
+    # Check if classification error goal has been achieved, for the moment 
+    # for training set only.  
+    if (is.null(test.inputs)) inps <- train.inputs else inps <- test.inputs
+    if (is.null(test.outputs)) outps <- train.outputs else outps <- test.outputs
+    y <- rbf$eval(inps)
+    if ( !is.null(classification.error.limit) ) {
+      if ( ncol(outps) == 1) {perf <- sum(abs(outps - round(y)))} # Should maybe restrict to 0,1?
+      else {
+        classification <- (y == apply(y, 1, max)) * 1
+        perf <- sum(abs(train.outputs - classification)) / 2 # One error gives sum on 2. 
+      }
+    }
+    else {
+      # Check if RMSE goal has been achieved, on training set for the moment.
+      if ( !is.null(rmse.limit) ) {perf <- root.mean.squared.error(outps, y)}
+    }
+    
+    # See if improved
+    if ( is.null(best.rbf) || perf <= best.perf ) {
+      if ( is.null(best.n.hidden) || n.hidden < best.n.hidden ) { # We prefer smaller nets
+        best.rbf <- rbf
+        best.perf <- perf
+        best.n.hidden <- n.hidden
+      }
+    }
+  }
+  return (best.rbf)
 }
 
 

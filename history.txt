@@ -14,7 +14,9 @@ March2020
 ---------
 - Implemented RMSE-based stopping criterion in INKA (classification error based done earlier).
 - Fixed INKA bug when only one output (required "as.matrix" in a few places). 
-- Impemented sombrero-function training and visualisation with NRDF/INKA.
+- Implemented sombrero-function training and visualisation with NRDF/INKA.
+- Implemented xxx function for creating/training "n" RBF networks and returning the one
+  that works the best. 
 
 6feb2020
 --------

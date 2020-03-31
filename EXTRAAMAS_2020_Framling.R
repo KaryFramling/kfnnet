@@ -86,8 +86,9 @@ Fig.fuzzy.AND <- function() {
                
 Fig.iris.plots <- function() {
   # Get INKA network trained on Iris data
-  rbf <- iris.inka.test()
-  
+  #rbf <- iris.inka.test()
+  rbf <- iris.get.best.inka(n=1)
+    
   # We need to re-create these for plotting etc.
   t.in <-
     as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
