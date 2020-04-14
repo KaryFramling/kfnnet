@@ -10,6 +10,12 @@ TO-DO
   than in Java implementation. 
 - Make Adaline function "train.with.delta" work with vector delta values. 
 
+April2020
+---------
+- Forgotten to update this for a while. 
+- Added predict.FunctionApproximator function to Interfaces.R so that the standard "predict" 
+  functionality can be used with all FunctionApproximator classes, i.e. RBF/INKA etc.
+
 March2020
 ---------
 - Implemented RMSE-based stopping criterion in INKA (classification error based done earlier).

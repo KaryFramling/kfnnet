@@ -2,12 +2,12 @@
 # they only contain method declarations and class names, they are usually
 # very compact. 
 #
-# Kary Främling, created 21 mar 2006
+# Kary Fr?mling, created 21 mar 2006
 #
 
 # "Interface class" for all kinds of function approximator
 # classes. This "class" contains no functionality, its sole
-# "raison-d'être" is to define a set of methods that need to
+# "raison-d'?tre" is to define a set of methods that need to
 # be implemented by any objects of type "FunctionApproximator".
 function.approximator.new <- function() {
 
@@ -68,5 +68,9 @@ controller.new <- function() {
              )
   class(m) <- c("Controller")
   return(m)
+}
+
+predict.FunctionApproximator <- function(fa, data) {
+  return(fa$eval(data))
 }
 

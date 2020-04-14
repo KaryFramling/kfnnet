@@ -1,6 +1,6 @@
 # "R" implementation of Neural Network layer, done in OOP fashion.
 #
-# Kary Främling, created 28 dec 2005
+# Kary Fr?mling, created 28 dec 2005
 #
 
 #-----

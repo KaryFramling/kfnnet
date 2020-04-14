@@ -1,6 +1,6 @@
 # "R" implementation of RBF Neural Network, done in OOP fashion.
 #
-# Kary Fr?mling, created 28 dec 2005
+# Kary Främling, created 28 dec 2005
 #
 
 # Everything needed for this file to work
@@ -59,7 +59,9 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
   # Return list of "public" methods
   pub <- list(
               get.inputs = function() { inputs },
+              get.nbr.inputs = function() { ninputs },
               get.outputs = function() { outputs },
+              get.nbr.outputs = function() { noutputs },
               get.outlayer = function() { outlayer },
               get.hidden = function() { hidden },
               get.spread = function() { hidden$get.spread() },
@@ -96,10 +98,14 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
                        inv.whole.set.at.end=T, classification.error.limit=NULL, rmse.limit=NULL, 
                        test.inputs=NULL, test.outputs=NULL) {
   
+  # Get number of inputs, number of outputs.
+  ninps <- rbf$get.nbr.inputs()
+  noutps <- rbf$get.nbr.outputs()
+  
   # Initialize set of remaining (not yet used for creating hidden neuron) traning examples. 
   # Set of used examples is initially empty.
-  t.in.remain <- as.matrix(train.inputs) # The set of remaining/unused training examples. 
-  targets.remain <- as.matrix(train.outputs) # as.matrix is to deal with case of it being a vector
+  t.in.remain <- matrix(train.inputs, ncol=ninps) # The set of remaining/unused training examples. 
+  targets.remain <- matrix(train.outputs, ncol=noutps) # matrix is to deal with case of it being a vector
   t.in.used <- NULL
   targets.used <- NULL
   
@@ -136,8 +142,8 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
     } 
     
     # Remove from set of remaining/unused training examples. 
-    t.in.remain <- as.matrix(t.in.remain[-ind.larg.err,])
-    targets.remain <- as.matrix(targets.remain[-ind.larg.err,])
+    t.in.remain <- matrix(t.in.remain[-ind.larg.err,], ncol=ninps)
+    targets.remain <- matrix(targets.remain[-ind.larg.err,], ncol=noutps)
     
     # Add new hidden neuron and output weight. But only if far enough from existing centroids
     # TO BE IMPLEMENTED!
@@ -257,28 +263,78 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
   return (best.rbf)
 }
 
+#=========================================================================
+# After this comes development-time code, for testing etc.
+#=========================================================================
 
-# Create an RBF network "manually", i.e. populate network and initialize weights "by hand". 
-test.rbf <- function() {
-  #rbf <- rbf.new(1, 1, 0, activation.function=squared.distance.activation, 
-  #               output.function=gaussian.output.function)
-  rbf <- rbf.new(1, 1, 0, activation.function=squared.distance.activation, 
-                 output.function=imqe.output.function)
-  ol <- rbf$get.outlayer()
-  ol$set.weights(matrix(c(1,2),nrow=1,ncol=2))
-  hl <- rbf$get.hidden()
-  hl$set.weights(matrix(c(1,5),nrow=2,ncol=1,byrow=T))
-  rbf$set.nrbf(TRUE)
-  rbf$set.spread(1)
-  x <- matrix(seq(-5,10,0.1))
-  y <- rbf$eval(x)
-  #for ( i in x )
-  #  print(rbf$eval(i))
-  plot(x, y, type='l')
-}
-
-#source("Functions.R")
-#source("Adaline.R")
-#source("NeuralLayer.R")
+# # Create an RBF network "manually", i.e. populate network and initialize weights "by hand". 
+# test.rbf <- function() {
+#   #rbf <- rbf.new(1, 1, 0, activation.function=squared.distance.activation, 
+#   #               output.function=gaussian.output.function)
+#   rbf <- rbf.new(1, 1, 0, activation.function=squared.distance.activation, 
+#                  output.function=imqe.output.function)
+#   ol <- rbf$get.outlayer()
+#   ol$set.weights(matrix(c(1,2),nrow=1,ncol=2))
+#   hl <- rbf$get.hidden()
+#   hl$set.weights(matrix(c(1,5),nrow=2,ncol=1,byrow=T))
+#   rbf$set.nrbf(TRUE)
+#   rbf$set.spread(1)
+#   x <- matrix(seq(-5,10,0.1))
+#   y <- rbf$eval(x)
+#   #for ( i in x )
+#   #  print(rbf$eval(i))
+#   plot(x, y, type='l')
+# }
 #test.rbf()
+
+# Matrix inversion for learning output layer weights
+# y = Ax (slight confusion with variable naming in R documentation in my opinion)
+# Two inputs, four data points (overdetermined). With Bias term.
+# x <- matrix(c(
+#   0,0,1,
+#   5,5,1,
+#   5,0,1,
+#   0,5,1
+# ), nrow=4, byrow=T)
+# y <- matrix(c(0.1,1,0.55,0.55))
+# H <- qr.solve(x, y)
+# x%*%H
+
+# # Create small training set and train with QR-decomposition
+# rbf.regression.test <- function(indices=c(1)) {
+#   x <- matrix(c(
+#     0,0,
+#     1,1,
+#     1,0,
+#     0,1
+#   ), ncol=2, byrow=T)
+#   y <- matrix(c(0,1,0.3,0.6),ncol=1)
+#   xints <- 2
+#   yints <- 2
+#   n.hidden <- xints*yints
+#   rbf <- rbf.new(2, 1, n.hidden, activation.function=squared.distance.activation, 
+#                  output.function=imqe.output.function)
+#   hl <- rbf.classifier.new(nbrInputs=2, nbrOutputs=n.hidden, activation.function=squared.distance.activation, 
+#                            output.function=gaussian.output.function)
+#   mins <- c(0,0)
+#   maxs <- c(1,1)
+#   at <- scale.translate.ranges(mins, maxs, c(0,0), c(1,1))
+#   #hl$init.centroids.grid(mins, maxs, c(xints,yints),affine.transformation=at)
+#   hl$init.centroids.grid(mins, maxs, c(xints,yints))
+#   rbf$set.hidden(hl)
+#   rbf$set.nrbf(TRUE)
+#   rbf$set.spread(0.3)
+#   outp <- rbf$eval(x)
+#   h.out <- hl$get.outputs()
+#   w <- qr.solve(h.out, y)
+#   ol <- rbf$get.outlayer()
+#   ol$set.weights(t(w))
+#   xp <- seq(0,1,0.05)
+#   yp <- xp
+#   m<-create.input.matrix(c(1,2), c(0,0), c(1,1), c(0.05,0.05),0)
+#   z <- rbf$eval(m)
+#   zm <- matrix(data=z, nrow=length(xp), ncol=length(yp), byrow=TRUE)
+#   persp(xp, yp, zm, zlim=c(0,1), theta=15, phi=20, shade=0.3)
+# }
+# rbf.regression.test()
 

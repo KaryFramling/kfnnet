@@ -1,6 +1,7 @@
-# Scripts for producing EXTTRAAMAS 2020 article figures and plots.
+# Scripts for producing EXTRAAMAS 2020 article figures and plots.
 
 source("Functions.R")
+source("RBF.R")
 source("ContextualImportanceUtility.R")
 source("IrisExperiments.R")
 
@@ -10,6 +11,46 @@ library(plot3D)
 x <- y <- seq(0, 1, 0.05)
 l <- list(x,y)
 pm <- create.permutation.matrix(l)
+
+# Create small training set for 2-class classification, train with QR-decomposition
+rbf.classification.test <- function(indices=c(1), visualize.output.index=1, n.samples=100) {
+  x <- matrix(c(0,0,1,1,1,0,0,1), ncol=2, byrow=T)
+  y <- matrix(c(1,0,0,1,1,0,1,0),ncol=2,byrow=T)
+  xints <- 2
+  yints <- 2
+  n.hidden <- xints*yints
+  rbf <- rbf.new(2, 2, n.hidden, activation.function=squared.distance.activation, 
+                 output.function=imqe.output.function)
+  hl <- rbf.classifier.new(nbrInputs=2, nbrOutputs=n.hidden, activation.function=squared.distance.activation, 
+                           output.function=gaussian.output.function)
+  mins <- c(0,0)
+  maxs <- c(1,1)
+  at <- scale.translate.ranges(mins, maxs, c(0,0), c(1,1))
+  #hl$init.centroids.grid(mins, maxs, c(xints,yints),affine.transformation=at)
+  hl$init.centroids.grid(mins, maxs, c(xints,yints))
+  rbf$set.hidden(hl)
+  rbf$set.nrbf(TRUE)
+  rbf$set.spread(0.3)
+  outp <- rbf$eval(x)
+  h.out <- hl$get.outputs()
+  w <- qr.solve(h.out, y)
+  ol <- rbf$get.outlayer()
+  ol$set.weights(t(w))
+  xp <- seq(0,1,0.05)
+  yp <- xp
+  m<-create.input.matrix(c(1,2), c(0,0), c(1,1), c(0.05,0.05),0)
+  z <- rbf$eval(m)
+  zm <- matrix(data=z[,visualize.output.index], nrow=length(xp), ncol=length(yp), byrow=TRUE)
+  res <- persp(xp, yp, zm, xlab = "x", ylab = "y", zlab = "z", theta = 15, phi = 5, ticktype = "detailed", zlim=c(0,1), shade=0.3)
+  #round(res, 3)
+  #xE <- c(0,1); xy <- expand.grid(xE, xE)
+  xy.ci.cu <- matrix(c(0.5,0.1),ncol=2)
+  z.ci.cu <- rbf$eval(xy.ci.cu)
+  points(trans3d(xy.ci.cu[,1], xy.ci.cu[,2], z.ci.cu[,visualize.output.index], pmat = res), col = 2, pch = 16, cex = 3)
+  ciu <- ciu.new(rbf, abs.min.max=matrix(c(0,1,0,1), ncol=2, byrow=T))
+  CI.CU <- ciu$explain(xy.ci.cu, ind.inputs.to.explain=indices)
+  CI.CU
+}
 
 # Simple weighted sum
 Fig.weighted.sum <- function() {
@@ -94,6 +135,7 @@ Fig.iris.plots <- function() {
     as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
   in.mins <- apply(t.in, 2, min)
   in.maxs <- apply(t.in, 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
   
   # Labels
   iris.inputs <- c("Sepal Length", "Sepal width", "Petal Length", "Petal width") # In centimeters
@@ -108,35 +150,39 @@ Fig.iris.plots <- function() {
   def.par <- par(no.readonly = TRUE) # save default, for resetting...
   layout(matrix(seq(1:4), 2, 2, byrow = TRUE)) # Could probably use "par(mfrow, mfcol)" or split.screen also.
 
+  # Initialize CIU object
+  ciu <- ciu.new(rbf, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), output.names=iris.types)
+
   # Create CIU plots for all inputs separately
   par(mar = c(5,5,1,1)) # c(bottom, left, top, right)
   for ( iris.ind in 1:length(iris.types) ) {
     for ( inp.ind in 1:length(iris.inputs) ) {
-      plot.CI.CU(rbf, instance.values, inp.ind, iris.ind, in.mins, in.maxs, xlab=iris.inputs[inp.ind], ylab=iris.types[iris.ind], ylim=c(0,1)) # No effect with "mar=c(0,0,0,0)"?
+#      plot.CI.CU(rbf, instance.values, inp.ind, iris.ind, in.mins, in.maxs, xlab=iris.inputs[inp.ind], ylab=iris.types[iris.ind], ylim=c(0,1)) # No effect with "mar=c(0,0,0,0)"?
+      ciu$plot.CI.CU(instance.values, ind.input=c(inp.ind), ind.output=c(iris.ind), in.min=in.mins[inp.ind], 
+                     in.max=in.maxs[inp.ind], n.points=40, xlab=iris.inputs[inp.ind], ylab=iris.types[iris.ind], ylim=c(0,1))
     }
   }
-  par(def.par)  #- reset to what it was before
     
   # CI&CU values for every input 
   c.minmax <- cbind(in.mins, in.maxs)
   for ( inp.ind in 1:length(iris.inputs) ) {
-    CI.CU <- contextual.IU(rbf, instance.values, c(inp.ind),matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), montecarlo.samples = 1000, c.minmax = c.minmax)
+    CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(inp.ind), in.min.max.limits=c.minmax, montecarlo.samples = 1000)
     print(iris.inputs[inp.ind])
     print(CI.CU)
   }
 
   # CI&CU values for Sepal size 
-  CI.CU <- contextual.IU(rbf, instance.values, c(1,2),matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), montecarlo.samples = 1000, c.minmax = c.minmax)
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(1,2), in.min.max.limits=c.minmax, montecarlo.samples = 1000)
   print("Sepal size")
-    print(CI.CU)
+  print(CI.CU)
   
   # CI&CU values for Petal size 
-  CI.CU <- contextual.IU(rbf, instance.values, c(3,4),matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), montecarlo.samples = 1000, c.minmax = c.minmax)
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(3,4), in.min.max.limits=c.minmax, montecarlo.samples = 1000)
   print("Petal size")
   print(CI.CU)
   
   # CI&CU values for all inputs
-  CI.CU <- contextual.IU(rbf, instance.values, c(1,2,3,4),matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), montecarlo.samples = 1000, c.minmax = c.minmax)
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(1:4), in.min.max.limits=c.minmax, montecarlo.samples = 1000)
   print("All inputs")
   print(CI.CU)
   
@@ -147,13 +193,13 @@ Fig.iris.plots <- function() {
   #par(mar = c(2,2,1,0)) # c(bottom, left, top, right)
   for ( out.ind in 1:length(iris.types) ) {
     inp.indices <- c(1,2)
-    plot.CI.CU.3D(rbf, instance.values, inp.indices, out.ind, in.mins, in.maxs, n.points=20, 
-                  xlab=iris.inputs[inp.indices[1]], ylab=iris.inputs[inp.indices[2]], zlab=iris.types[out.ind], 
-                  theta = 0, phi = 15, zlim=c(0,1))
+    ciu$plot.CI.CU.3D(instance.values, ind.inputs=inp.indices, ind.output=out.ind, in.mins=in.mins, in.maxs=in.maxs, n.points=20,
+                      xlab=iris.inputs[inp.indices[1]], ylab=iris.inputs[inp.indices[2]], zlab=iris.types[out.ind], 
+                      theta = 0, phi = 15, zlim=c(0,1))
     inp.indices <- c(3,4)
-    plot.CI.CU.3D(rbf, instance.values, inp.indices, out.ind, in.mins, in.maxs, n.points=20, 
-                  xlab=iris.inputs[inp.indices[1]], ylab=iris.inputs[inp.indices[2]], zlab=iris.types[out.ind], 
-                  theta = 0, phi = 15, zlim=c(0,1))
+    ciu$plot.CI.CU.3D(instance.values, ind.inputs=inp.indices, ind.output=out.ind, in.mins=in.mins, in.maxs=in.maxs, n.points=20,
+                      xlab=iris.inputs[inp.indices[1]], ylab=iris.inputs[inp.indices[2]], zlab=iris.types[out.ind], 
+                      theta = 0, phi = 15, zlim=c(0,1))
   }
   par(def.par)  #- reset to what it was before
   
