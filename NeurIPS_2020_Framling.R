@@ -86,7 +86,7 @@ Fig.two.class.example <- function() {
   
   
   rbf <- rbf.new(2, 2, 0, activation.function = squared.distance.activation, output.function = imqe.output.function)
-  rbf$set.nrbf(TRUE)
+#  rbf$set.nrbf(TRUE)
   # rbf$set.spread(0.01)
   # train.in <- matrix(c(0.25, 0.25, 0.75, 0.75), ncol=2, byrow=TRUE)
   rbf$set.spread(0.1)
@@ -110,6 +110,92 @@ Fig.two.class.example <- function() {
   # print(CI.CU)
   # CI.CU <- rbf.classification.test(indices=c(2), visualize.output.index=2)
   # print(CI.CU)
+  par(def.par)  #- reset to what it was before
+}
+
+Fig.iris.plots.NeurIPS <- function() {
+  # Get INKA network trained on Iris data
+  #rbf <- iris.inka.test()
+  rbf <- iris.get.best.inka(n=1)
+  
+  # We need to re-create these for plotting etc.
+  t.in <-
+    as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
+  in.mins <- apply(t.in, 2, min)
+  in.maxs <- apply(t.in, 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
+  
+  # Labels
+  iris.inputs <- c("Sepal Length", "Sepal width", "Petal Length", "Petal width") # In centimeters
+  iris.types <- c("Setosa", "Versicolor", "Virginica")
+  
+  # Plot effect of one input on one output for given instance.
+  instance.values <- c(7, 3.2, 6, 1.8) # This is not a flower from Iris set!
+  print("Values of the three outputs.")
+  print(rbf$eval(instance.values))
+  
+  # Initialize CIU object
+  ciu <- ciu.new(rbf, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), input.names=iris.inputs, output.names=iris.types)
+
+  # Plot Figures side by side
+  def.par <- par(no.readonly = TRUE) # save default, for resetting...
+#  layout(matrix(seq(1:4), 2, 2, byrow = TRUE)) # Could probably use "par(mfrow, mfcol)" or split.screen also.
+  par(mfrow=c(2,2))
+  
+  # Create CIU plots for all inputs separately
+  par(mar = c(5,5,1,1)) # c(bottom, left, top, right)
+  for ( iris.ind in 1:length(iris.types) ) {
+    for ( inp.ind in 1:length(iris.inputs) ) {
+      #      plot.CI.CU(rbf, instance.values, inp.ind, iris.ind, in.mins, in.maxs, xlab=iris.inputs[inp.ind], ylab=iris.types[iris.ind], ylim=c(0,1)) # No effect with "mar=c(0,0,0,0)"?
+      ciu$plot.CI.CU(instance.values, ind.input=c(inp.ind), ind.output=c(iris.ind), 
+                     n.points=40)
+    }
+  }
+  par(def.par)
+  
+  # CI&CU values for every input 
+  for ( inp.ind in 1:length(iris.inputs) ) {
+    CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(inp.ind), montecarlo.samples = 1000)
+    print(iris.inputs[inp.ind])
+    print(CI.CU)
+  }
+  
+  # CI&CU values for Sepal size 
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(1,2), montecarlo.samples = 1000)
+  print("Sepal size")
+  print(CI.CU)
+  
+  # CI&CU values for Petal size 
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(3,4), montecarlo.samples = 1000)
+  print("Petal size")
+  print(CI.CU)
+  
+  # CI&CU values for all inputs
+  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(1:4), montecarlo.samples = 1000)
+  print("All inputs")
+  print(CI.CU)
+  
+  # 3D plots for Sepal Size vs Iris class and Petal size vs Iris class
+  # Create CIU plots for all inputs separately
+  def.par <- par(no.readonly = TRUE) # save default, for resetting...
+#  layout(matrix(seq(1:2), 1, 2, byrow = TRUE)) # Could probably use "par(mfrow, mfcol)" or split.screen also.
+  par(mfrow=c(1,2))
+  #par(mar = c(2,2,1,0)) # c(bottom, left, top, right)
+  for ( out.ind in 1:length(iris.types) ) {
+    inp.indices <- c(1,2)
+    ciu$plot.CI.CU.3D(instance.values, ind.inputs=inp.indices, ind.output=out.ind, n.points=20,
+                      theta = 0, phi = 15)
+    inp.indices <- c(3,4)
+    ciu$plot.CI.CU.3D(instance.values, ind.inputs=inp.indices, ind.output=out.ind, n.points=20,
+                      theta = 0, phi = 15)
+  }
+  par(def.par)  #- reset to what it was before
+  
+  def.par <- par(no.readonly = TRUE) # save default, for resetting...
+  par(mfrow=c(2,2))
+  for ( out.ind in 1:length(iris.types) ) {
+    ciu$barplot.CI.CU(inputs=instance.values, ind.output=out.ind)
+  }
   par(def.par)  #- reset to what it was before
 }
 
