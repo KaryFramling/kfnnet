@@ -29,9 +29,14 @@ source("ContextualImportanceUtility.R")
 in.mins <- apply(iris_train, 2, min)
 in.maxs <- apply(iris_train, 2, max)
 c.minmax <- cbind(in.mins, in.maxs)
+#bad.predict.function <- function(model, inputs) { c(1) } 
+#good.lda.predict.function <- function(model, inputs) { pred <- predict(model,inputs); return(pred$posterior) }
 #CI.CU <- contextual.IU(model, iris_test, c(1),matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), montecarlo.samples = 1000, c.minmax = c.minmax)
 out.names <- levels(iris_lab)
-ciu <- ciu.new(model, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), output.names=out.names)
+ciu <- ciu.new(model, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), 
+               output.names=out.names)
+#ciu <- ciu.new(model, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), 
+#               output.names=out.names, predict.function=good.lda.predict.function)
 CI.CU <- ciu$explain(iris_test, ind.inputs.to.explain=c(1))
 CI.CU
 inp.ind.to.plot <- 3

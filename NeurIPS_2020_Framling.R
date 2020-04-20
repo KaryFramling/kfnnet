@@ -201,5 +201,13 @@ Fig.iris.plots.NeurIPS <- function() {
 
 Iris.Lime.Inka <- function() {
   inka <- iris.get.best.inka()
-  explanation <- lime(iris[,1:4], inka)
+  predict_model.FunctionApproximator <- function(x, newdata, type, ...) {
+    as.data.frame(inka$eval(as.matrix(newdata)))
+  }
+  model_type.FunctionApproximator <- function(x, ...) "classification"
+  explainer <- lime(iris[,1:4], inka)
+  iris_test <- iris[1,1:4]
+  explanation <- explain(iris_test, explainer, n_labels = 3, n_features = 4)
+  print(explanation)
+  plot_features(explanation)
 }
