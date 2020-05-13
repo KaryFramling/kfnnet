@@ -4,17 +4,60 @@ History file of Kary Främling's NNET implementation in "R"
 TO-DO
 -----
 
-
+- Shorten methods barplot.CI.CU / pie.CI.CU, now too much code replicated. 
 - Implement possibility for greedy exploration after some episode 
   limit - or more freely, which should be easier in "R" implementation 
   than in Java implementation. 
-- Make Adaline function "train.with.delta" work with vector delta values. 
+- Make Adaline function "train.with.delta" work with vector delta values.
+
+10May2020
+- Test pie.CI.CU for intermediate concepts etc. Seems to work fine. 
+
+9May2020
+--------
+- Implemented sorting by CI/CU for barplot.CI.CU. Possible to do increasing/decreasing 
+  also. 
+- Created method pie.CI.CU. Works but needs to be further tested. 
+
+8May2020
+--------
+- Totally modified color scheme/logic for barplot.CI.CU. Now using colorRamp for 
+  specifying the color according to CU. Two different ones, below and above 
+  neutral value, it was too difficult to get it right otherwise. Default 
+  colors go from red -> yellow -> green. 
+
+4May2020
+--------
+- Fixed small bug in "barplot.CI.CU" for target.concept, target.CI.CU. 
+
+29Apr2020
+---------
+- Implemented target.concept, target.CI.CU for "barplot.CI.CU". Results look a little 
+  surprising though, need to check still. Must be something wrong there. 
+
+28Apr2020
+---------
+- Added arguments target.concept, target.CI.CU to "explain" so that CIU can now also 
+  be calculated relative to any intermediate concept, or calculated CIU values for 
+  the outputs if that is preferred rather than having fixed/pre-determined output range. 
+- Implemented target.concept, target.CI.CU for "explain.vocabulary" method. 
+
+27Apr2020
+---------
+- Added "Cmin,Cmax" columns to the result of ciu$explain. A major reason for this is to 
+  enable the caclulation of CIU relative to any "intermediate concept", not just to the 
+  entire output value. 
+- Added support for vocabulary in ciu$barplot.CI.CU. 
 
 April2020
 ---------
 - Forgotten to update this for a while. 
 - Added predict.FunctionApproximator function to Interfaces.R so that the standard "predict" 
   functionality can be used with all FunctionApproximator classes, i.e. RBF/INKA etc.
+- Created three Github repositories: "kfnnet", "ciu" and "inka" and published corresponding
+  contents there (inka still ongoing). 
+- Lots of new functionality in ciu. Also LIME tests and implementations. 
+- Boston Houding Data test and implementations, published on Github.
 
 March2020
 ---------

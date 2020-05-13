@@ -214,8 +214,8 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
                            output.function=imqe.output.function, nrbf=T, use.bias=F, 
                            spread=0.1, c=0.01, test.inputs=NULL, test.outputs=NULL) {
   # Get number of inputs and number of outputs
-  n.in <- ncol(train.inputs)
-  n.out <- ncol(train.outputs)
+  n.in <- ncol(as.matrix(train.inputs))
+  n.out <- ncol(as.matrix(train.outputs))
   
   # Iterate until best one os found
   best.rbf <- NULL

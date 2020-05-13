@@ -47,7 +47,7 @@ rbf.classification.test <- function(indices=c(1), visualize.output.index=1, n.sa
   xy.ci.cu <- matrix(c(0.5,0.1),ncol=2)
   z.ci.cu <- rbf$eval(xy.ci.cu)
   points(trans3d(xy.ci.cu[,1], xy.ci.cu[,2], z.ci.cu[,visualize.output.index], pmat = res), col = 2, pch = 16, cex = 3)
-  ciu <- ciu.new(rbf, abs.min.max=matrix(c(0,1,0,1), ncol=2, byrow=T))
+  ciu <- ciu.new(rbf, in.min.max.limits=matrix(c(0,1,0,1), ncol=2, byrow=T), abs.min.max=matrix(c(0,1,0,1), ncol=2, byrow=T))
   CI.CU <- ciu$explain(xy.ci.cu, ind.inputs.to.explain=indices)
   CI.CU
 }
@@ -203,5 +203,23 @@ Fig.iris.plots <- function() {
   }
   par(def.par)  #- reset to what it was before
   
-  # layout(matrix(c(1)))
+  # Bar plots
+  par(mfrow=c(1,3))
+  for ( out.ind in 1:length(iris.types) ) {
+    ciu$barplot.CI.CU(inputs=instance.values, ind.output=out.ind)
+  }
+  par(def.par)  #- reset to what it was before
+  
+  # Bar plots, intermediate concepts
+  voc <- list("Sepal size and shape"=c(1,2), "Petal size and shape"=c(3,4)) # Small vocabulary
+  ciu2 <- ciu.new(rbf, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), 
+                 input.names=iris.inputs, output.names=iris.types, vocabulary=voc)
+  CI.CU <- ciu2$explain.vocabulary(instance.values, concepts.to.explain=c("Sepal size and shape","Petal size and shape"), 
+                                  montecarlo.samples=1000)
+  par(mfrow=c(1,3))
+  for ( out.ind in 1:length(iris.types) ) {
+    ciu2$barplot.CI.CU(instance.values, ind.output=out.ind, concepts.to.explain=c("Sepal size and shape","Petal size and shape"))
+  }
+  par(def.par)  #- reset to what it was before
+  
 }

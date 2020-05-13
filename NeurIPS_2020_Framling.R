@@ -5,13 +5,23 @@ source("RBF.R")
 source("ContextualImportanceUtility.R")
 source("IrisExperiments.R")
 
+library(MASS)
 library(plot3D)
 library(lime)
+library(caret)
 
 # Create input matrix for evaluation&plots
 x <- y <- seq(0, 1, 0.05)
 l <- list(x,y)
 pm <- create.permutation.matrix(l)
+
+# Create all models used here in this script
+iris_train <- iris[, 1:4]
+iris_lab <- iris[[5]]
+iris.model.lda <- lda(iris_train, iris_lab)
+iris.model.rf <- train(iris_train, iris_lab, method = 'rf')
+iris.model.inka <- iris.get.best.inka()
+
 
 # Simple weighted sum
 Fig.weighted.sum <- function() {
@@ -114,13 +124,10 @@ Fig.two.class.example <- function() {
 }
 
 Fig.iris.plots.NeurIPS <- function() {
-  # Get INKA network trained on Iris data
-  #rbf <- iris.inka.test()
-  rbf <- iris.get.best.inka(n=1)
-  
+
   # We need to re-create these for plotting etc.
   t.in <-
-    as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
+    as.matrix(iris[, 1:4])
   in.mins <- apply(t.in, 2, min)
   in.maxs <- apply(t.in, 2, max)
   c.minmax <- cbind(in.mins, in.maxs)
@@ -130,16 +137,26 @@ Fig.iris.plots.NeurIPS <- function() {
   iris.types <- c("Setosa", "Versicolor", "Virginica")
   
   # Plot effect of one input on one output for given instance.
-  instance.values <- c(7, 3.2, 6, 1.8) # This is not a flower from Iris set!
+  # inka takes matrix, others use data.frame.
+  use.inka <- TRUE
   print("Values of the three outputs.")
-  print(rbf$eval(instance.values))
+  if ( use.inka ) {
+    instance.values <- c(7, 3.2, 6, 1.8) # This is not a flower from Iris set!
+    model <- iris.model.inka
+    print(model$eval(instance.values))
+  }
+  else {
+    instance.values <- iris[1,1:4]
+    instance.values[1,] <- c(7, 3.2, 6, 1.8)
+    model <- iris.model.rf
+    print(predict(model, instance.values, type="prob"))
+  }
   
   # Initialize CIU object
-  ciu <- ciu.new(rbf, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), input.names=iris.inputs, output.names=iris.types)
+  ciu <- ciu.new(model, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), input.names=iris.inputs, output.names=iris.types)
 
   # Plot Figures side by side
   def.par <- par(no.readonly = TRUE) # save default, for resetting...
-#  layout(matrix(seq(1:4), 2, 2, byrow = TRUE)) # Could probably use "par(mfrow, mfcol)" or split.screen also.
   par(mfrow=c(2,2))
   
   # Create CIU plots for all inputs separately
@@ -190,24 +207,119 @@ Fig.iris.plots.NeurIPS <- function() {
                       theta = 0, phi = 15)
   }
   par(def.par)  #- reset to what it was before
-  
-  def.par <- par(no.readonly = TRUE) # save default, for resetting...
-  par(mfrow=c(2,2))
+
+  # Barplots  
+  par(mfrow=c(1,3))
   for ( out.ind in 1:length(iris.types) ) {
     ciu$barplot.CI.CU(inputs=instance.values, ind.output=out.ind)
   }
-  par(def.par)  #- reset to what it was before
+  par(mfrow=c(1,1))
+
+  # Pie charts  
+  #par(mfrow=c(1,3))
+  for ( out.ind in 1:length(iris.types) ) {
+    ciu$pie.CI.CU(inputs=instance.values, ind.output=out.ind)
+  }
+  par(mfrow=c(1,1))
 }
 
 Iris.Lime.Inka <- function() {
-  inka <- iris.get.best.inka()
   predict_model.FunctionApproximator <- function(x, newdata, type, ...) {
-    as.data.frame(inka$eval(as.matrix(newdata)))
+    as.data.frame(x$eval(as.matrix(newdata)))
   }
   model_type.FunctionApproximator <- function(x, ...) "classification"
-  explainer <- lime(iris[,1:4], inka)
+  explainer <- lime(iris[,1:4], iris.model.inka)
   iris_test <- iris[1,1:4]
   explanation <- explain(iris_test, explainer, n_labels = 3, n_features = 4)
   print(explanation)
   plot_features(explanation)
+}
+
+# Tests with vocabulary, intermediate concepts. 
+Iris.Intermediate.Concepts <- function() {
+  # We need to re-create these for plotting etc.
+  t.in <-
+    as.matrix(iris[, 1:4])
+  in.mins <- apply(t.in, 2, min)
+  in.maxs <- apply(t.in, 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
+  
+  # Labels
+  iris.inputs <- c("Sepal Length", "Sepal width", "Petal Length", "Petal width") # In centimeters
+  iris.types <- c("Setosa", "Versicolor", "Virginica")
+  
+  # Plot effect of one input on one output for given instance.
+  instance.values <- c(7, 3.2, 6, 1.8) # This is not a flower from Iris set!
+  print("Values of the three outputs.")
+  print(iris.model.inka$eval(instance.values))
+
+  # Small vocabulary
+  voc <- list("Sepal size and shape"=c(1,2), "Petal size and shape"=c(3,4))
+
+  # Initialize CIU object
+  ciu <- ciu.new(iris.model.inka, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), 
+                 input.names=iris.inputs, output.names=iris.types, vocabulary=voc)
+  CI.CU <- ciu$explain.vocabulary(instance.values, concepts.to.explain=c("Sepal size and shape","Petal size and shape"), 
+                                  montecarlo.samples=1000)
+  print(CI.CU)
+
+  # Bar plots for intermediate concepts.
+  par(mfrow=c(1,3))
+  for ( ind.output in 1:length(iris.types) ) {
+    ciu$barplot.CI.CU(instance.values, ind.output=ind.output, neutral.CU=0.5, montecarlo.samples=1000,
+                    concepts.to.explain=c("Sepal size and shape","Petal size and shape"))
+  }
+  
+  # CIU of input features versus intermediate concepts.
+#  CI.CU <- ciu$explain(instance.values, ind.inputs.to.explain=c(1), montecarlo.samples=1000, 
+#                      target.concept="Sepal size and shape")
+  par(mfrow=c(1,2))
+  for ( ind.output in 1:length(iris.types) ) {
+    ciu$barplot.CI.CU(instance.values, ind.inputs=c(1,2), ind.output=ind.output, neutral.CU=0.5, montecarlo.samples=1000,
+                      target.concept="Sepal size and shape")
+    ciu$barplot.CI.CU(instance.values, ind.inputs=c(3,4), ind.output=ind.output, neutral.CU=0.5, montecarlo.samples=1000,
+                      target.concept="Petal size and shape")
+  }
+  
+  par(mfrow=c(1,1))
+  ciu$pie.CI.CU(instance.values, ind.output=ind.output, montecarlo.samples=1000,
+                    concepts.to.explain=c("Sepal size and shape","Petal size and shape"))
+  ciu$pie.CI.CU(inputs=instance.values, ind.inputs=c(1,2), ind.output=ind.output, montecarlo.samples=1000,
+                target.concept="Sepal size and shape")
+  ciu$pie.CI.CU(inputs=instance.values, ind.inputs=c(3,4), ind.output=ind.output, montecarlo.samples=1000,
+                target.concept="Petal size and shape")
+  par(mfrow=c(1,1))
+}
+
+Boston.Figures.NeurIPS <- function() {
+  require(MASS) # Just in case Boston is not already available
+  require(gbm)
+  
+  n.in <- ncol(Boston) - 1
+  in.mins <- apply(Boston[,1:n.in], 2, min)
+  in.maxs <- apply(Boston[,1:n.in], 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
+  out.range <- matrix(c(min(Boston$medv), max(Boston$medv)), ncol=2)
+  
+  # We don't care about train/test set in this case because it's not about evaluating training performance.
+  Boston.boost=gbm(medv ~ . ,data = Boston, distribution = "gaussian", n.trees=10000,
+                   shrinkage = 0.01, interaction.depth = 4)
+  gbm.fa.new <- function(gbm, n.trees=1) {
+    o.gbm <- gbm
+    o.n.trees <- n.trees
+    pub <- list(eval = function(inputs) { predict(o.gbm,inputs,n.trees=o.n.trees) })
+    class(pub) <- c("gbm.fa",class(function.approximator.new()),class(pub))
+    return(pub)
+  }
+  gbm.fa <- gbm.fa.new(Boston.boost, 10000)
+  ciu.gbm.fa <- ciu.new(gbm.fa, in.min.max.limits=c.minmax, abs.min.max=out.range, 
+                        input.names=names(Boston)[1:n.in], output.names=names(Boston)[n.in+1])
+  def.par <- par(no.readonly = TRUE) # save default, for resetting...
+  par(mfrow=c(1,3))
+#  par(mar = c(1,1,1,1)) # c(bottom, left, top, right)
+  ciu.gbm.fa$barplot.CI.CU(Boston[406,1:n.in], main="Row #406, medv=5k$")
+  ciu.gbm.fa$barplot.CI.CU(Boston[6,1:n.in], main="Row #6, medv=28.7k$")
+  ciu.gbm.fa$barplot.CI.CU(Boston[370,1:n.in], main="Row #370, medv=50k$")
+  par(mfrow=c(1,1))
+  par(def.par)
 }
