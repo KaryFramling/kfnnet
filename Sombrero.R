@@ -78,12 +78,12 @@ sombrero.knn <- function() {
 
 # Use Random Forest. 
 sombrero.rf <- function() {
-  #rfModel <- train(z ~ ., data=trainData, method = 'rf') # This works better
-  # library(randomForest)
-  # rfModel <- randomForest(z ~ .,
-  #                         data=trainData,
-  #                         importance=TRUE,
-  #                         ntree=5000)
+  rfModel <- train(z ~ ., data=trainData, method = 'rf') # This works better
+   # library(randomForest)
+   # rfModel <- randomForest(z ~ .,
+   #                         data=trainData,
+   #                         importance=TRUE,
+   #                         ntree=5000)
   zvals <- predict(rfModel, fxy)
   z <- matrix(zvals, nrow=length(x), ncol=length(y))
   persp(x, y, z)
@@ -91,19 +91,77 @@ sombrero.rf <- function() {
   rmse.rf <<- RMSE(test.targets,zvals)
 }
 
-# Test using Neural Nets package directly
-sombrero.nnet <- function() {
-  preProcess_range_model <- preProcess(trainData, method='range')
-  tD <- predict(preProcess_range_model, newdata = trainData)
-  library(neuralnet)
-  #n <- names(tD)
-  f <- as.formula("z ~ .")
-  nn <- neuralnet(f,data=tD,hidden=c(50),linear.output=T,stepmax=1e+06, lifesign = "full")
-  pr.nn <- predict(nn,fxy)
-  z <- matrix(pr.nn, nrow=length(x), ncol=length(y))
+# Use Extreme Gradient Boosting, v1. Takes time and fails completely. 
+sombrero.xgbDART <- function() {
+  xgbDartModel <- train(z ~ ., data=trainData, method = 'xgbDART') 
+  zvals <- predict(xgbDartModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
   persp(x, y, z)
-  rmse.nn <<- RMSE(test.targets,pr.nn)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.xgbDART <<- RMSE(test.targets,zvals)
 }
+
+# Use Extreme Gradient Boosting, Tree version. 
+sombrero.xgbTree <- function() {
+  xgbTreeModel <- train(z ~ ., data=trainData, method = 'xgbTree') 
+  zvals <- predict(xgbTreeModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
+  persp(x, y, z)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.xgbTree <<- RMSE(test.targets,zvals)
+}
+
+# Stochastic Gradient Boosting. Quick but fails completely.
+sombrero.gbm <- function() {
+  gbmModel <- train(z ~ ., data=trainData, method = 'gbm') 
+  zvals <- predict(gbmModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
+  persp(x, y, z)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.gbm <<- RMSE(test.targets,zvals)
+}
+
+# Multilayer Perceptron Network with Dropout.
+sombrero.mlpKerasDropout <- function() {
+  mlpKerasDropoutModel <- train(z ~ ., data=trainData, method = 'mlpKerasDropout', linout = TRUE) 
+  zvals <- predict(mlpKerasDropoutModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
+  persp(x, y, z)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.mlpKerasDropout <<- RMSE(test.targets,zvals)
+}
+
+# nnet.
+sombrero.nnet <- function() {
+  trc <- trainControl(method = "none") # Seems to work fine like this also! And does only one iteration. 
+  start.time <- proc.time()        # Save starting time
+  nnetModel <<- train(z ~ ., data=trainData,
+                     method = "nnet", tuneGrid = data.frame(size=110,decay=0), trControl=trc,
+                     linout = TRUE, maxit=5000)
+  end.time <- proc.time()
+  exec.time <- end.time - start.time # Time difference between start & end
+  print(exec.time) 
+  zvals <- predict(nnetModel, fxy)
+  z <- matrix(zvals, nrow=length(x), ncol=length(y))
+  persp(x, y, z)
+  #postResample(pred = test_set$pred, obs = test_set$obs)
+  rmse.nnet <<- RMSE(test.targets,zvals)
+}
+
+
+# # Test using Neural Nets package directly. Doesn't work...
+# sombrero.nnet <- function() {
+#   preProcess_range_model <- preProcess(trainData, method='range')
+#   tD <- predict(preProcess_range_model, newdata = trainData)
+#   library(nnet)
+#   #n <- names(tD)
+#   f <- as.formula("z ~ .")
+#   nn <- nnet(f,data=tD,size=50,linout=TRUE,decay=0,maxit=10000)
+#   pr.nn <- predict(nn,fxy)
+#   z <- matrix(pr.nn, nrow=length(x), ncol=length(y))
+#   persp(x, y, z)
+#   rmse.nn <<- RMSE(test.targets,pr.nn)
+# }
 
 # Make INKA training on sombrero function data and plot the resulting model.
 sombrero.inka.test <- function() {
@@ -123,6 +181,7 @@ sombrero.inka.test <- function() {
   ol$set.use.bias(FALSE)
   rbf$set.spread(30) # d^2 parameter in INKA
   c <- 1 # The "c" parameter in INKA training, minimal distance for adding new hidden neuron.
+  start.time <- proc.time()        # Save starting time
   n.hidden <-
     train.inka(
       rbf,
@@ -133,9 +192,12 @@ sombrero.inka.test <- function() {
       inv.whole.set.at.end = F, 
       rmse.limit=0.001
     )
+  end.time <- proc.time()
+  exec.time <- end.time - start.time # Time difference between start & end
+  print(exec.time) 
   
   # Calculate error measure etc.
-  print(n.hidden)
+  print(paste("Number of hidden neurons:", n.hidden))
   
   # Plot output surface
   zvals <- rbf$eval(plot.XYvals)

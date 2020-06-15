@@ -10,8 +10,15 @@ TO-DO
   than in Java implementation. 
 - Make Adaline function "train.with.delta" work with vector delta values.
 
+5June2020
+---------
+- Forgotten to write here for a while.
+- Implemented train.inka.formula method so that INKA training would look a little more like for 
+  other algorithms, with "formula,data" parameters.
+
 10May2020
-- Test pie.CI.CU for intermediate concepts etc. Seems to work fine. 
+---------
+- Tested pie.CI.CU for intermediate concepts etc. Seems to work fine. 
 
 9May2020
 --------

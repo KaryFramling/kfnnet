@@ -44,14 +44,9 @@ train.targets <- targets[trainRowNumbers,]
 test.targets <- targets[-trainRowNumbers,]
 
 # Create net and train
-rbf <- rbf.new(n.in, n.out, 0, activation.function = squared.distance.activation,
-               output.function = imqe.output.function)
-rbf$set.nrbf(TRUE)
-ol <- rbf$get.outlayer()
-ol$set.use.bias(FALSE)
-rbf$set.spread(0.1) # d^2 parameter in INKA
-n.hidden <- train.inka(rbf, train.in, train.targets, c=0.01, max.iter=300, 
-                       inv.whole.set.at.end=F, rmse.limit=2.5, test.inputs=test.in, test.outputs=test.targets)
+rbf <- rbf.new(n.in, n.out, 0, normalize=TRUE, spread=0.1)
+n.hidden <- train.inka(rbf, train.in, train.targets, c=0.01, max.iter=nrow(train.in), 
+                       inv.whole.set.at.end=F, rmse.limit=2.5)
 print(paste("Hidden: ",n.hidden))
 test.out <- rbf$eval(test.in)
 #RMSE(test.targets,test.out) # How well did we do in practice?
@@ -66,13 +61,19 @@ predmatrix<-predict(Boston.boost,Boston[-trainRowNumbers,],n.trees=n.trees)
 #RMSE(as.matrix(Boston$medv)[-trainRowNumbers,],predmatrix)
 root.mean.squared.error(predmatrix,as.matrix(Boston$medv)[-trainRowNumbers,])
 
+# Caret version of gradient boosting
+kfoldcv <- trainControl(method="cv", number=10)
+caret.gbm <- train(medv ~ ., Boston[trainRowNumbers,], method="gbm", trControl=kfoldcv)
+test.out <- predict(caret.gbm, newdata=Boston[-trainRowNumbers,])
+root.mean.squared.error(test.out, test.targets)
+
 # Try out a set of RBFs and take best one. Takes a little longer...
 n.rbfs.to.test <- 10
 rbf <- find.best.inka (n=n.rbfs.to.test, train.inputs=train.in, train.outputs=train.targets, max.iter=200, 
                        inv.whole.set.at.end=F, classification.error.limit=NULL, 
                        rmse.limit=2.5, activation.function=squared.distance.activation, 
                        output.function=imqe.output.function, nrbf=T, use.bias=F, 
-                       spread=0.1, c=0.01, test.inputs=test.in, test.outputs=test.targets)
+                       spread=0.1, c=0.01)
 test.out <- rbf$eval(test.in)
 root.mean.squared.error(test.out, test.targets)
 print(paste("Hidden: ",nrow(rbf$get.hidden()$get.weights())))
@@ -120,6 +121,11 @@ ciu.gbm.fa$barplot.CI.CU(Boston[inst.ind,1:n.in])
 # Instance 406 has medv=5
 # Instance 370 has medv=50
 # Instance 6 has medv=28.7
+# Instance 96 has medv=28.4
+# Boston$medv[362] = 19.9
+# Boston$medv[199] = 34.6
+
+
 
 # LIME: can't get to work yet...
 # require(lime)
@@ -128,8 +134,8 @@ ciu.gbm.fa$barplot.CI.CU(Boston[inst.ind,1:n.in])
 # }
 # model_type.gbm <- function(x, ...) "regression"
 # explainer <- lime(Boston[,1:13], Boston.boost)
-# m<-Boston[c(406,6,370), 1:n.in]
-# explanation <- explain(m, explainer, n_labels = 1, n_features = 13)
+# m<-Boston[c(406,6,370), 1:13]
+# explanation <- explain(m, explainer, n_features = 13)
 # print(explanation)
 # plot_features(explanation)
 

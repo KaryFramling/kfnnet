@@ -247,7 +247,7 @@ ciu.new <- function(bb, in.min.max.limits=NULL, abs.min.max=NULL,
       m <- matrix(inputs, ncol=n.col, nrow=length(xp), byrow=T)
     }
     m[,ind.input] <- xp
-    yp <- o.predict.function(o.model, m)
+    yp <- as.matrix(o.predict.function(o.model, m)) # as.matrix to deal with case of only one output
     cu.val <- o.predict.function(o.model, inputs)
     
     # Set up plot parameters

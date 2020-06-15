@@ -6,6 +6,9 @@
 # Created by Kary Främling 4oct2019
 #
 
+require(caret)
+
+source("RBF.R")
 source("ContextualImportanceUtility.R")
 
 # This DOES NOT give good results because "init.centroids.grid" covers the entire input space 
@@ -35,10 +38,9 @@ iris.rbf.grid.test <- function() {
   t.in <- as.matrix(iris[, 1:4]) # Iris data set apparently exists by default in R
   in.mins <- apply(t.in, 2, min)
   in.maxs <- apply(t.in, 2, max)
-  setosas <- (iris[, 5] == "setosa") * 1
-  versicolors <- (iris[, 5] == "versicolor") * 1
-  virginicas <- (iris[, 5] == "virginica") * 1
-  targets <- matrix(c(setosas, versicolors, virginicas), ncol = 3)
+
+  # One-hot encoding for target variable 
+  targets <- model.matrix(~0+iris[,'Species'])
   
   # Initialise hidden layer. Normalise input matrix to [0,1].
   aff.trans <-
@@ -81,16 +83,16 @@ iris.rbf.grid.test <- function() {
 }
 
 # Train INKA with Iris data, get best network from a number of tested ones.
-iris.get.best.inka <- function(n.rbfs.to.test=1) {
+iris.get.best.inka <- function(n.rbfs.to.test=1, train=NULL) {
   n.in <- 4
   n.out <- 3
+  if ( is.null(train) )
+    train <- iris
   t.in <-
-    as.matrix(iris[, 1:n.in]) # Iris data set apparently exists by default in R
-  setosas <- (iris[, 5] == "setosa") * 1
-  versicolors <- (iris[, 5] == "versicolor") * 1
-  virginicas <- (iris[, 5] == "virginica") * 1
-  targets <- matrix(c(setosas, versicolors, virginicas), ncol = 3)
-  rbf <- find.best.inka (n=n.rbfs.to.test, train.inputs=t.in, train.outputs=targets, max.iter=20, 
+    as.matrix(train[, 1:n.in]) # Iris data set apparently exists by default in R
+  # One-hot encoding for target variable 
+  targets <- model.matrix(~0+train[,'Species'])
+  rbf <- find.best.inka(n=n.rbfs.to.test, train.inputs=t.in, train.outputs=targets, max.iter=30, 
                          inv.whole.set.at.end=F, classification.error.limit=0, 
                          rmse.limit=NULL, activation.function=squared.distance.activation, 
                          output.function=imqe.output.function, nrbf=T, use.bias=F, 
@@ -105,13 +107,28 @@ iris.get.best.inka <- function(n.rbfs.to.test=1) {
   return(rbf) # Return trained RBF network
 }
 
+# Train INKA with Iris data, get best network from a number of tested ones.
+iris.inka.formula <- function() {
+  inTrain <- createDataPartition(y=iris$Species, p=0.75, list=FALSE) # 75% to train set
+  training.Iris <- iris[inTrain,]
+  testing.Iris <- iris[-inTrain,]
+  rbf <- train.inka.formula(Species~., data=training.Iris, spread=0.1, max.iter=20, 
+                                        classification.error.limit=0)
+  y <- rbf$eval(as.matrix(testing.Iris[,1:4]))
+  classification <- (y == apply(y, 1, max)) * 1; 
+  #perf <- sum(abs(test.out - classification)) / 2; print(perf) # Simple calculation of how many mis-classified
+  # Confusion matrix. Requires converting one-hot to factor. 
+  pred.class <- seq(1:nrow(classification)); for ( i in 1:3) { pred.class[classification[,i]==1] <- levels(iris$Species)[i]}
+  confusionMatrix(data = as.factor(pred.class), reference = iris[-inTrain, 5])
+}
+
 iris.caret.models <- function() {
   # Create training and test sets
   inTrain<-createDataPartition(y=iris$Species, p=0.75, list=FALSE) # 75% to train set
   training.Iris<-iris[inTrain,]
   testing.Iris<-iris[-inTrain,]
-  preObj<-preProcess(training.Iris[,-5], method = c("center", "scale"))
-  preObjData<-predict(preObj,training.Iris[,-5])
+  # preObj<-preProcess(training.Iris[,-5], method = c("center", "scale"))
+  # preObjData<-predict(preObj,training.Iris[,-5])
   modelFit<-train(Species~., data=training.Iris, preProcess=c("center", "scale"), method="lda")
   #Predict new data with model fitted
   predictions<-predict(modelFit, newdata=testing.Iris)
@@ -123,21 +140,182 @@ iris.caret.models <- function() {
   performance_metric <- "Accuracy"
   
   #Linear Discriminant Analysis (LDA)
-  lda.iris <- train(Species~., data=iris, method="lda", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
-
+  lda.time <- system.time(lda.iris <<- train(Species~., data=iris, method="lda", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale")))
+  print(lda.time)
+  
   #Classification and Regression Trees (CART)
-  cart.iris <- train(Species~., data=iris, method="rpart", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  cart.iris <<- train(Species~., data=iris, method="rpart", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
   
   #Support Vector Machines (SVM)
-  svm.iris <- train(Species~., data=iris, method="svmRadial", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  svm.iris <<- train(Species~., data=iris, method="svmRadial", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
   
   # Random Forest
-  rf.iris <- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  rf.iris <<- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  
+  # Stochastic Gradient Boosting
+  gbm.iris <<- train(Species~., data=iris, method="gbm", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  
+  # nnet
+  nnet.iris <<- train(Species~., data=iris, method="nnet", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
   
   # Summary of results
-  results.iris <- resamples(list(lda=lda.iris, cart=cart.iris,  svm=svm.iris, rf=rf.iris))
+  results.iris <<- resamples(list(lda=lda.iris, cart=cart.iris,  svm=svm.iris, rf=rf.iris, gbm=gbm.iris, nnet=nnet.iris))
   summary(results.iris)
   
   # Plot results
   dotplot(results.iris)
+}
+
+iris.inka.run <- function(train, test) {
+  exec.time <- system.time(
+    rbf <- train.inka.formula(Species~., data=train, spread=0.1, max.iter=50, 
+                              classification.error.limit=0))
+  nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
+  # Training set performance
+  y <- rbf$eval(as.matrix(train[,1:4]))
+  classification <- (y == apply(y, 1, max)) * 1; 
+  targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
+  train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
+  # Test set performance
+  y <- rbf$eval(as.matrix(test[,1:4]))
+  classification <- (y == apply(y, 1, max)) * 1; 
+  targets <- model.matrix(~0+test[,'Species']) # One-hot encoding
+  test.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=nbr.hidden,
+                    row.names=c("inka")))
+}
+
+iris.best.inka.run <- function(train, test) {
+  exec.time <- system.time(rbf <- iris.get.best.inka(5)) # This needs to be modified...
+  nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
+  # Training set performance
+  y <- rbf$eval(as.matrix(train[,1:4]))
+  classification <- (y == apply(y, 1, max)) * 1; 
+  targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
+  train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
+  # Test set performance
+  y <- rbf$eval(as.matrix(test[,1:4]))
+  classification <- (y == apply(y, 1, max)) * 1; 
+  targets <- model.matrix(~0+test[,'Species']) # One-hot encoding
+  test.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=nbr.hidden,
+                    row.names=c("best inka (10)")))
+}
+
+iris.lda.run <- function(train, test) {
+  exec.time <- system.time(
+    modelFit <- train(Species~., data=train, preProcess=c("center", "scale"), method="lda")
+  )
+  
+  # Test set performance
+  predictions <- predict(modelFit, newdata=test)
+  test.err <- sum(predictions != test$Species)
+  #confusionMatrix(predictions, test$Species) # Not needed here
+  # Training set performance
+  predictions <- predict(modelFit, newdata=train)
+  train.err <- sum(predictions != train$Species)
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=length(modelFit$finalModel$svd),
+                    row.names=c("lda")))
+}
+
+iris.rf.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  performance_metric <- "Accuracy"
+  exec.time <- system.time(
+    modelFit <- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  )
+  # Test set performance
+  predictions <- predict(modelFit, newdata=test)
+  test.err <- sum(predictions != test$Species)
+  #confusionMatrix(predictions, test$Species) # Not needed here
+  # Training set performance
+  predictions <- predict(modelFit, newdata=train)
+  train.err <- sum(predictions != train$Species)
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=modelFit$finalModel$ntree,
+                    row.names=c("rf")))
+}
+
+iris.gbm.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  performance_metric <- "Accuracy"
+  exec.time <- system.time(
+    modelFit <- train(Species~., data=iris, method="gbm", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+  )
+  # Test set performance
+  predictions <- predict(modelFit, newdata=test)
+  test.err <- sum(predictions != test$Species)
+  #confusionMatrix(predictions, test$Species) # Not needed here
+  # Training set performance
+  predictions <- predict(modelFit, newdata=train)
+  train.err <- sum(predictions != train$Species)
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=modelFit$bestTune[1][1,1],
+                    row.names=c("gbm")))
+}
+
+iris.nnet.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  performance_metric <- "Accuracy"
+  exec.time <- system.time(
+    # We want to run until it converges
+    nnet.iris <<- train(Species~., data=train, method="nnet", metric=performance_metric, 
+                      trControl=kfoldcv, preProcess=c("center", "scale"), maxit=5000) 
+  )
+  
+  # Test set performance
+  predictions <- predict(nnet.iris, newdata=test)
+  test.err <- sum(predictions != test$Species)
+  #confusionMatrix(predictions, test$Species) # Not needed here
+  # Training set performance
+  predictions <- predict(nnet.iris, newdata=train)
+  train.err <- sum(predictions != train$Species)
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=nnet.iris$bestTune[1][1,1],
+                    row.names=c("nnet")))
+}
+
+iris.nnet.fix.run <- function(train, test) {
+  trc <- trainControl(method = "none") # Only one iteration. 
+  performance_metric <- "Accuracy"
+  exec.time <- system.time(
+    # We want to run until it converges
+    nnet.fix.iris <<- train(Species~., data=train, method="nnet", tuneGrid = data.frame(size=15,decay=0), 
+                        metric=performance_metric, 
+                        trControl=trc, preProcess=c("center", "scale"), maxit=5000) 
+  )
+  
+  # Test set performance
+  predictions <- predict(nnet.fix.iris, newdata=test)
+  test.err <- sum(predictions != test$Species)
+  #confusionMatrix(predictions, test$Species) # Not needed here
+  # Training set performance
+  predictions <- predict(nnet.fix.iris, newdata=train)
+  train.err <- sum(predictions != train$Species)
+  return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=nnet.fix.iris$bestTune[1][1,1],
+                    row.names=c("nnet")))
+}
+
+iris.run.all <- function() {
+  #set.seed(7)
+  
+  # Create training and test sets
+  inTrain <- createDataPartition(y=iris$Species, p=0.75, list=FALSE) # 75% to train set
+  training <- iris[inTrain,]
+  test <- iris[-inTrain,]
+  
+  # Run all models and get performance
+  iris.perf <- iris.inka.run(training, test)
+  iris.perf <- rbind(iris.perf, iris.best.inka.run(training, test))
+  iris.perf <- rbind(iris.perf, iris.lda.run(training, test))
+  iris.perf <- rbind(iris.perf, iris.rf.run(training, test))
+  iris.perf <- rbind(iris.perf, iris.gbm.run(training, test))
+  iris.perf <- rbind(iris.perf, iris.nnet.run(training, test))
+  iris.perf <- rbind(iris.perf, iris.nnet.fix.run(training, test))
+
+  return(iris.perf)
 }

@@ -20,7 +20,7 @@ source("RBFclassifier.R")
 rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
                     activation.function=squared.distance.activation,
                     output.function=gaussian.output.function,
-                    normalize=FALSE) {
+                    normalize=FALSE, spread=0.1) {
 
   ninputs <- nbrInputs
   noutputs <- nbrOutputs
@@ -33,12 +33,18 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
   outlayer <- adaline.new(nhidden, noutputs)
   hidden <- rbf.classifier.new(ninputs, nhidden, activation.function, output.function)
   hidden$set.normalize(normalize)
+  if ( normalize ) { # Remove bias term
+    outlayer$set.use.bias(FALSE)
+  }
 
   # Set default parameters
-  hidden$set.spread(1.0)
+  hidden$set.spread(spread)
   
   # Method for doing forward-pass, i.e. calculate outputs based on inputs
   eval <- function(invals) {
+    # # Deal with data.frame and similar cases. This could maybe be done more elegantly somehow...
+    # if ( !is.matrix(invals) )
+    #   invals <- as.matrix(invals)
     inputs <<- invals
     h <- hidden$eval(inputs)
     outputs <<- outlayer$eval(h)
@@ -94,13 +100,17 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
 #   goes under this value. To be used for classification tasks. 
 # - rmse.limit: If specified, traning ends when RMSE between traget values and output values goes under (or equals)
 #   the given limit. 
-train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1, 
+train.inka <- function(rbf, train.inputs, train.outputs, c=0.01, max.iter=1, 
                        inv.whole.set.at.end=T, classification.error.limit=NULL, rmse.limit=NULL, 
                        test.inputs=NULL, test.outputs=NULL) {
   
   # Get number of inputs, number of outputs.
   ninps <- rbf$get.nbr.inputs()
   noutps <- rbf$get.nbr.outputs()
+  
+  # Old remains: turn everything into matrix, just in case.
+  train.inputs <- as.matrix(train.inputs)
+  train.outputs <- as.matrix(train.outputs)
   
   # Initialize set of remaining (not yet used for creating hidden neuron) traning examples. 
   # Set of used examples is initially empty.
@@ -183,7 +193,7 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
       if ( ncol(outps) == 1) {perf <- sum(abs(outps - round(y)))} # Should maybe restrict to 0,1?
       else {
         classification <- (y == apply(y, 1, max)) * 1
-        perf <- sum(abs(train.outputs - classification)) / 2 # One error gives sum on 2. 
+        perf <- sum(abs(outps - classification)) / 2 # One error gives sum on 2. 
       }
       if ( perf <= classification.error.limit ) # Stop training if error is small enough.
         break
@@ -207,13 +217,31 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0, max.iter=1,
   return(nrow(hl$get.weights())) # Return number of hidden neurons created
 }
 
+# Train with formula / data call
+# If dependent variable is of type "factor", then it is automatically one-hot encoded.
+train.inka.formula <- function(formula, data, spread=0.1, normalize=TRUE, ...) {
+  d <- model.frame(formula=formula, data=data)
+  out.name <- formula[[2]]
+  outputs <- d[, names(d)==out.name, drop = FALSE]
+  if ( is.factor(outputs[,1]) ) {
+    n <- levels(outputs[,1])
+    outputs <- model.matrix(~0+outputs[,1])
+    attr(outputs, "dimnames")[[2]] <- n
+  }
+  inputs <- d[, names(d)!=out.name]
+  rbf <- rbf.new(ncol(inputs), ncol(outputs), 0, normalize=normalize, spread=spread)
+  train.inka(rbf=rbf, train.inputs=inputs, train.outputs=outputs, ...)
+  return(rbf)
+}
+
 # Create "n" RBF nets with given parameters and return the one that performs the best
 find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1, 
                            inv.whole.set.at.end=T, classification.error.limit=NULL, 
                            rmse.limit=NULL, activation.function=squared.distance.activation, 
                            output.function=imqe.output.function, nrbf=T, use.bias=F, 
                            spread=0.1, c=0.01, test.inputs=NULL, test.outputs=NULL) {
-  # Get number of inputs and number of outputs
+  # Get number of inputs and number of outputs. As.matrix is to deal with the case if 
+  # either one is a vector only. 
   n.in <- ncol(as.matrix(train.inputs))
   n.out <- ncol(as.matrix(train.outputs))
   
@@ -234,8 +262,7 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
                            inv.whole.set.at.end, classification.error.limit, 
                            rmse.limit, test.inputs, test.outputs)
     # If better than previous, replace best.rbf
-    # Check if classification error goal has been achieved, for the moment 
-    # for training set only.  
+    # Check if classification error goal has been achieved.  
     if (is.null(test.inputs)) inps <- train.inputs else inps <- test.inputs
     if (is.null(test.outputs)) outps <- train.outputs else outps <- test.outputs
     y <- rbf$eval(inps)
@@ -243,7 +270,7 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
       if ( ncol(outps) == 1) {perf <- sum(abs(outps - round(y)))} # Should maybe restrict to 0,1?
       else {
         classification <- (y == apply(y, 1, max)) * 1
-        perf <- sum(abs(train.outputs - classification)) / 2 # One error gives sum on 2. 
+        perf <- sum(abs(outps - classification)) / 2 # One error gives sum on 2. 
       }
     }
     else {
