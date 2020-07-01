@@ -19,7 +19,7 @@ source("RBFclassifier.R")
 # normalize: Normalize hidden layer outputs or not, i.e. "ordinary" RBF or normalized RBF
 rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
                     activation.function=squared.distance.activation,
-                    output.function=gaussian.output.function,
+                    output.function=imqe.output.function,
                     normalize=FALSE, spread=0.1) {
 
   ninputs <- nbrInputs
@@ -28,6 +28,7 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
   outputs <- c()
   inputs <- c()
   targets <- c()
+  formula <- NULL
 
   # Create neural layers
   outlayer <- adaline.new(nhidden, noutputs)
@@ -77,7 +78,9 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
               set.spread = function(value) { hidden$set.spread(value) },
               set.nrbf = function(value) { hidden$set.normalize(value) },
               eval = function(invals) { eval(invals) },
-              train = function(t) { train(t) }
+              train = function(t) { train(t) }, 
+              get.formula = function() { formula },
+              set.formula = function(f) { formula <<- f }
   )
 
   # We implement "FunctionApproximator"
@@ -101,7 +104,7 @@ rbf.new <- function(nbrInputs, nbrOutputs, n.hidden.neurons,
 # - rmse.limit: If specified, traning ends when RMSE between traget values and output values goes under (or equals)
 #   the given limit. 
 train.inka <- function(rbf, train.inputs, train.outputs, c=0.01, max.iter=1, 
-                       inv.whole.set.at.end=T, classification.error.limit=NULL, rmse.limit=NULL, 
+                       inv.whole.set.at.end=F, classification.error.limit=NULL, rmse.limit=NULL, 
                        test.inputs=NULL, test.outputs=NULL) {
   
   # Get number of inputs, number of outputs.
@@ -217,26 +220,9 @@ train.inka <- function(rbf, train.inputs, train.outputs, c=0.01, max.iter=1,
   return(nrow(hl$get.weights())) # Return number of hidden neurons created
 }
 
-# Train with formula / data call
-# If dependent variable is of type "factor", then it is automatically one-hot encoded.
-train.inka.formula <- function(formula, data, spread=0.1, normalize=TRUE, ...) {
-  d <- model.frame(formula=formula, data=data)
-  out.name <- formula[[2]]
-  outputs <- d[, names(d)==out.name, drop = FALSE]
-  if ( is.factor(outputs[,1]) ) {
-    n <- levels(outputs[,1])
-    outputs <- model.matrix(~0+outputs[,1])
-    attr(outputs, "dimnames")[[2]] <- n
-  }
-  inputs <- d[, names(d)!=out.name]
-  rbf <- rbf.new(ncol(inputs), ncol(outputs), 0, normalize=normalize, spread=spread)
-  train.inka(rbf=rbf, train.inputs=inputs, train.outputs=outputs, ...)
-  return(rbf)
-}
-
 # Create "n" RBF nets with given parameters and return the one that performs the best
 find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1, 
-                           inv.whole.set.at.end=T, classification.error.limit=NULL, 
+                           inv.whole.set.at.end=F, classification.error.limit=NULL, 
                            rmse.limit=NULL, activation.function=squared.distance.activation, 
                            output.function=imqe.output.function, nrbf=T, use.bias=F, 
                            spread=0.1, c=0.01, test.inputs=NULL, test.outputs=NULL) {
@@ -251,12 +237,8 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
   best.n.hidden <- NULL
   for ( i in seq(1:n) ) {
     # Create new RBF
-    rbf <- rbf.new(n.in, n.out, 0, activation.function, output.function)
-    rbf$set.nrbf(nrbf)
-    ol <- rbf$get.outlayer()
-    ol$set.use.bias(use.bias)
-    rbf$set.spread(spread) # d^2 parameter in INKA
-    
+    rbf <- rbf.new(n.in, n.out, 0, activation.function, output.function, normalize=nrbf, spread=spread)
+
     # Train
     n.hidden <- train.inka(rbf, train.inputs, train.outputs, c, max.iter, 
                            inv.whole.set.at.end, classification.error.limit, 
@@ -288,6 +270,61 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
     }
   }
   return (best.rbf)
+}
+
+# Extract all elements from formula in form expected by INKA implementation. 
+# If output variable is a factor, then split it into corresponding number of one-hot outputs. 
+# Return a list of elements: 
+# 1. Name of output variable
+# 2. Matrix of input values
+# 3. Matrix of output/target values. 
+parse.formula.inka <- function(formula, data) {
+  d <- model.frame(formula=formula, data=data) # Do any default treatment on data first
+  out.name <- formula[[2]] # We expect that output variable name is given
+  outputs <- d[, names(d)==out.name, drop = FALSE] # Extract output matrix
+  if ( is.factor(outputs[,1]) ) { # One-hot if factor
+    n <- levels(outputs[,1])
+    outputs <- model.matrix(~0+outputs[,1])
+    attr(outputs, "dimnames")[[2]] <- n
+  }
+  inputs <- (d[, names(d)!=out.name]) # Extract input matrix
+  inputs <- apply(inputs,2,as.numeric) # Just in case values became strings...
+  return(list(out.name=out.name, inputs=inputs, outputs=outputs))
+}
+
+# Train with formula / data call
+# If dependent variable is of type "factor", then it is automatically one-hot encoded.
+train.inka.formula <- function(formula, data, spread=0.1, normalize=TRUE, ...) {
+  # Split into parameters as expected by original INKA methods. 
+  pars <- parse.formula.inka(formula, data)
+  out.name <- pars$out.name; inputs <- pars$inputs; outputs <- pars$outputs
+  rbf <- rbf.new(ncol(inputs), ncol(outputs), 0, normalize=normalize, spread=spread)
+  rbf$set.formula(formula)
+  train.inka(rbf=rbf, train.inputs=inputs, train.outputs=outputs, ...)
+  return(rbf)
+}
+
+# Train with formula / data call
+# If dependent variable is of type "factor", then it is automatically one-hot encoded.
+find.best.inka.formula <- function(formula, data, ...) {
+  # Split into parameters as expected by original INKA methods. 
+  pars <- parse.formula.inka(formula, data)
+  out.name <- pars$out.name; inputs <- pars$inputs; outputs <- pars$outputs
+  rbf <- find.best.inka(train.inputs=inputs, train.outputs=outputs, ...)
+  rbf$set.formula(formula)
+  return(rbf)
+}
+
+# Caret-like "predict" method with formula. However, here the default is to return 
+# the real-valued output values also for classification tasks, 
+# rather than doing one-hot coding.
+predict.rbf <- function(rbf, newdata) {
+  f <- rbf$get.formula()
+  if ( is.null(f) )
+    stop("Formula has to be given before calling predict.inka.")
+  pars <- parse.formula.inka(formula=f, data=newdata)
+  inputs <- pars$inputs
+  return(rbf$eval(inputs))
 }
 
 #=========================================================================

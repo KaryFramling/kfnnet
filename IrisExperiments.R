@@ -114,7 +114,8 @@ iris.inka.formula <- function() {
   testing.Iris <- iris[-inTrain,]
   rbf <- train.inka.formula(Species~., data=training.Iris, spread=0.1, max.iter=20, 
                                         classification.error.limit=0)
-  y <- rbf$eval(as.matrix(testing.Iris[,1:4]))
+  #y <- rbf$eval(as.matrix(testing.Iris[,1:4]))
+  y <- predict.rbf(rbf, newdata=testing.Iris)
   classification <- (y == apply(y, 1, max)) * 1; 
   #perf <- sum(abs(test.out - classification)) / 2; print(perf) # Simple calculation of how many mis-classified
   # Confusion matrix. Requires converting one-hot to factor. 
@@ -172,12 +173,14 @@ iris.inka.run <- function(train, test) {
                               classification.error.limit=0))
   nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
   # Training set performance
-  y <- rbf$eval(as.matrix(train[,1:4]))
+  #y <- rbf$eval(as.matrix(train[,1:4]))
+  y <- predict.rbf(rbf, newdata=train)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
   train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
   # Test set performance
-  y <- rbf$eval(as.matrix(test[,1:4]))
+  #y <- rbf$eval(as.matrix(test[,1:4]))
+  y <- predict.rbf(rbf, newdata=test)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+test[,'Species']) # One-hot encoding
   test.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
@@ -187,21 +190,25 @@ iris.inka.run <- function(train, test) {
 }
 
 iris.best.inka.run <- function(train, test) {
-  exec.time <- system.time(rbf <- iris.get.best.inka(5)) # This needs to be modified...
+#  exec.time <- system.time(rbf <- iris.get.best.inka(5)) # This needs to be modified...
+  exec.time <- system.time(
+    rbf <- find.best.inka.formula(Species~., data=train, n=5, spread=0.1, max.iter=30, classification.error.limit=0))
   nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
   # Training set performance
-  y <- rbf$eval(as.matrix(train[,1:4]))
+  #y <- rbf$eval(as.matrix(train[,1:4]))
+  y <- predict.rbf(rbf, newdata=train)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
   train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
   # Test set performance
-  y <- rbf$eval(as.matrix(test[,1:4]))
+  #y <- rbf$eval(as.matrix(test[,1:4]))
+  y <- predict.rbf(rbf, newdata=test)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+test[,'Species']) # One-hot encoding
   test.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
   return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
                     "Size"=nbr.hidden,
-                    row.names=c("best inka (10)")))
+                    row.names=c("best inka (5)")))
 }
 
 iris.lda.run <- function(train, test) {
@@ -297,7 +304,7 @@ iris.nnet.fix.run <- function(train, test) {
   train.err <- sum(predictions != train$Species)
   return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
                     "Size"=nnet.fix.iris$bestTune[1][1,1],
-                    row.names=c("nnet")))
+                    row.names=c("nnet.fix")))
 }
 
 iris.run.all <- function() {
@@ -319,3 +326,5 @@ iris.run.all <- function() {
 
   return(iris.perf)
 }
+
+

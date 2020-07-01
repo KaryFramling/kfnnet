@@ -4,11 +4,30 @@ History file of Kary Främling's NNET implementation in "R"
 TO-DO
 -----
 
+- Optimize implementation of some RBF functions, now there are still some loops there. 
 - Shorten methods barplot.CI.CU / pie.CI.CU, now too much code replicated. 
 - Implement possibility for greedy exploration after some episode 
   limit - or more freely, which should be easier in "R" implementation 
   than in Java implementation. 
 - Make Adaline function "train.with.delta" work with vector delta values.
+
+1July2020
+---------
+- Wrote "predict.rbf <- function(rbf, newdata)" function for more caret-like
+  handling of data with formulae. That also allows for "smarter" pre-processing
+  in the sense of dealing with "factor" type inputs, for instance. However, 
+  the operation is not identical to caret "predict" and for the moment, the 
+  intention is not to make it identical neither (unless some day integrated)
+  in "caret" library. 
+
+20June2020
+---------
+- Forgotten to write again for a while. 
+- Implemented BreastCancer comparisons for INKA and other methods. 
+- Fixed some bugs, or rather unexpected behaviour in R type conversions. 
+- Modified default iNKA parameters to what they should really be. 
+- Continued to improve "formula" functionality of INKA.
+- Implemented "find.best.inka.formula", tested and used with BreastCancer. 
 
 5June2020
 ---------
