@@ -114,7 +114,6 @@ iris.inka.formula <- function() {
   testing.Iris <- iris[-inTrain,]
   rbf <- train.inka.formula(Species~., data=training.Iris, spread=0.1, max.iter=20, 
                                         classification.error.limit=0)
-  #y <- rbf$eval(as.matrix(testing.Iris[,1:4]))
   y <- predict.rbf(rbf, newdata=testing.Iris)
   classification <- (y == apply(y, 1, max)) * 1; 
   #perf <- sum(abs(test.out - classification)) / 2; print(perf) # Simple calculation of how many mis-classified
@@ -173,13 +172,11 @@ iris.inka.run <- function(train, test) {
                               classification.error.limit=0))
   nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
   # Training set performance
-  #y <- rbf$eval(as.matrix(train[,1:4]))
   y <- predict.rbf(rbf, newdata=train)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
   train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
   # Test set performance
-  #y <- rbf$eval(as.matrix(test[,1:4]))
   y <- predict.rbf(rbf, newdata=test)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+test[,'Species']) # One-hot encoding

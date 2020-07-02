@@ -65,7 +65,7 @@ root.mean.squared.error(predmatrix,as.matrix(Boston$medv)[-trainRowNumbers,])
 kfoldcv <- trainControl(method="cv", number=10)
 caret.gbm <- train(medv ~ ., Boston[trainRowNumbers,], method="gbm", trControl=kfoldcv)
 test.out <- predict(caret.gbm, newdata=Boston[-trainRowNumbers,])
-root.mean.squared.error(test.out, test.targets)
+print(paste("Caret GBM RMSE:", root.mean.squared.error(test.out, test.targets)))
 
 # Try out a set of RBFs and take best one. Takes a little longer...
 n.rbfs.to.test <- 10
@@ -139,3 +139,99 @@ ciu.gbm.fa$barplot.CI.CU(Boston[inst.ind,1:n.in])
 # print(explanation)
 # plot_features(explanation)
 
+# INKA 
+# spread=0.1, c=0.5 gives quite similar results as GBM but more hidden neurons. 
+# "Classical" spread=0.1, c=0.1 seems to be as good as anything else, very similar results 
+# as GBM with rmse.limit=2.1. Gives around 70 hidden neurons. 
+# Playing around with RMSE limit has a lot of effect also, of course. 2.1 seems like good compromise. 
+# rmse.limit=2.0 starts giving better results than GBM but then hidden neurons go up to 65-85. 
+# rmse.limit=1.9 gives better training set RMSE than GBM but then hidden neurons go up to 72-95
+# and test set RMSE not always so good, however it seems to get better than GBM in most cases. 
+# rmse.limit=1.5 gives hidden neurons in range 105-125, test set RMSE still better for GBM more than 
+# half of the time. 
+# rmse.limit=1.0 gives hidden neurons in range 160-185, test set RMSE seems to become better than 
+# for GBM about half of the time. 
+boston.inka.run <- function(train, test) {
+  exec.time <- system.time(
+    boston.rbf <<- train.inka.formula(medv~., data=train, spread=0.1, c=0.1, max.iter=nrow(train), 
+                                        rmse.limit=1.8))
+  nbr.hidden <- nrow(boston.rbf$get.hidden()$get.weights()) # Number of hidden neurons
+  # Training set performance
+  zvals <- predict.rbf(boston.rbf, newdata=train)
+  train.err <- RMSE(train$medv,zvals)
+  # Test set performance
+  zvals <- predict.rbf(boston.rbf, newdata=test)
+  test.err <- RMSE(test$medv,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=nbr.hidden,
+                    row.names=c("inka")))
+}
+
+# lm 
+boston.lm.run <- function(train, test) {
+  exec.time <- system.time(
+    boston.lm <<- train(medv ~ ., train, method="lm"))
+  # Training set performance
+  zvals <- predict(boston.lm, newdata=train)
+  train.err <- RMSE(train$medv,zvals)
+  # Test set performance
+  zvals <- predict(boston.lm, newdata=test)
+  test.err <- RMSE(test$medv,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=NA,
+                    row.names=c("lm")))
+}
+
+# GBM, caret 
+boston.gbm.caret.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  exec.time <- system.time(
+    boston.gbm.caret <<- train(medv ~ ., train, method="gbm", trControl=kfoldcv))
+  # Training set performance
+  zvals <- predict(boston.gbm.caret, newdata=train)
+  train.err <- RMSE(train$medv,zvals)
+  # Test set performance
+  zvals <- predict(boston.gbm.caret, newdata=test)
+  test.err <- RMSE(test$medv,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=boston.gbm.caret$bestTune[1][1,1],
+                    row.names=c("gbm")))
+}
+
+# Naural Net, caret 
+boston.nnet.caret.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  exec.time <- system.time(
+    boston.nnet.caret <<- train(medv ~ ., data=train,
+                               method = "nnet", trControl=kfoldcv,
+                               linout = TRUE, maxit=5000))
+  # Training set performance
+  zvals <- predict(boston.nnet.caret, newdata=train)
+  train.err <- RMSE(train$medv,zvals)
+  # Test set performance
+  zvals <- predict(boston.nnet.caret, newdata=test)
+  test.err <- RMSE(test$medv,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=boston.nnet.caret$bestTune[1][1,1],
+                    row.names=c("nnet")))
+}
+
+boston.run.all <- function() {
+  
+  # Create training/test sets. 
+  preProcess_range_model <- preProcess(Boston[,-14], method='range') # Everything into [0,1]
+  Boston[,-14] <- predict(preProcess_range_model, newdata = Boston[,-14]) # Normalised inputs
+  trainRowNumbers <- createDataPartition(Boston$medv, p=0.8, list=FALSE)
+  training <- Boston[trainRowNumbers,]
+  test <- Boston[-trainRowNumbers,]
+
+  # Run all models and get performance
+  boston.perf <- boston.inka.run(training, test)
+  boston.perf <- rbind(boston.perf, boston.lm.run(training, test))
+  boston.perf <- rbind(boston.perf, boston.gbm.caret.run(training, test))
+  boston.perf <- rbind(boston.perf, boston.nnet.caret.run(training, test))
+  # boston.perf <- rbind(boston.perf, boston.nnet.fixed.run(training, test))
+  # boston.perf <- rbind(boston.perf, boston.nnet.run(training, test))
+  
+  return(boston.perf)
+}

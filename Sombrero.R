@@ -62,7 +62,9 @@ test.targets <- get.sombrero.3D(plot.XYvals[,1],plot.XYvals[,2])
 #z <- matrix(test.targets, nrow=length(x), ncol=length(y))
 #persp(x, y, z)
 
-# Testing different models from caret. 
+
+# k Nearest Neighbors. Super-quick (no learning, actually...) and gives sombrero-looking result, 
+# even though it's just about as rough as the one by Random Forest. 
 sombrero.knn <- function() {
   logRegModel <- train(z ~ ., data=trainData, method = 'knn') # Works
   #logRegModel <- train(z ~ ., data=trainData, method = 'mlp', size=100) # Not good
@@ -76,7 +78,7 @@ sombrero.knn <- function() {
   rmse.knn <<- RMSE(test.targets,zvals)
 }
 
-# Use Random Forest. 
+# Random Forest. Quick and gets to "something" that looks just a little like a sombrero.
 sombrero.rf <- function() {
   rfModel <- train(z ~ ., data=trainData, method = 'rf') # This works better
    # library(randomForest)
@@ -101,7 +103,7 @@ sombrero.xgbDART <- function() {
   rmse.xgbDART <<- RMSE(test.targets,zvals)
 }
 
-# Use Extreme Gradient Boosting, Tree version. 
+# Use Extreme Gradient Boosting, Tree version. Longer than GBM but fails in same way. 
 sombrero.xgbTree <- function() {
   xgbTreeModel <- train(z ~ ., data=trainData, method = 'xgbTree') 
   zvals <- predict(xgbTreeModel, fxy)
@@ -121,7 +123,8 @@ sombrero.gbm <- function() {
   rmse.gbm <<- RMSE(test.targets,zvals)
 }
 
-# Multilayer Perceptron Network with Dropout.
+# Multilayer Perceptron Network with Dropout. Takes very long and only comes up with a linear 
+# model that doesn't make sense. 
 sombrero.mlpKerasDropout <- function() {
   mlpKerasDropoutModel <- train(z ~ ., data=trainData, method = 'mlpKerasDropout', linout = TRUE) 
   zvals <- predict(mlpKerasDropoutModel, fxy)
@@ -204,5 +207,126 @@ sombrero.inka.test <- function() {
   z <- matrix(zvals, nrow=length(x), ncol=length(y))
   persp(x, y, z)
   rmse.inka <<- RMSE(test.targets,zvals)
+}
+
+
+# INKA 
+sombrero.inka.run <- function(train, test) {
+  exec.time <- system.time(
+    sombrero.rbf <<- train.inka.formula(z~., data=train, spread=30, c=1, max.iter=200, 
+                              rmse.limit=0.001))
+  nbr.hidden <- nrow(sombrero.rbf$get.hidden()$get.weights()) # Number of hidden neurons
+  # Training set performance
+  zvals <- predict.rbf(sombrero.rbf, newdata=train)
+  train.err <- RMSE(train$z,zvals)
+  # Test set performance
+  zvals <- predict.rbf(sombrero.rbf, newdata=test)
+  test.err <- RMSE(test$z,zvals)
+  return(data.frame("Train Set RMSE"=train.err,"Test Set RMSE"=test.err,"Execution time"=exec.time[3], 
+                    "Size"=nbr.hidden,
+                    row.names=c("inka")))
+}
+
+# k-NearestNeighbor 
+sombrero.knn.run <- function(train, test) {
+  exec.time <- system.time(
+    sombrero.knn <<- train(z ~ ., data=train, method = 'knn'))
+  # Training set performance
+  zvals <- predict(sombrero.knn, newdata=train)
+  train.err <- RMSE(train$z,zvals)
+  # Test set performance
+  zvals <- predict(sombrero.knn, newdata=test)
+  test.err <- RMSE(test$z,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=NA,
+                    row.names=c("knn")))
+}
+
+# Random Forest 
+sombrero.rf.run <- function(train, test) {
+  exec.time <- system.time(
+    sombrero.rf <<- train(z ~ ., data=train, method = 'rf'))
+  # Training set performance
+  zvals <- predict(sombrero.rf, newdata=train)
+  train.err <- RMSE(train$z,zvals)
+  # Test set performance
+  zvals <- predict(sombrero.rf, newdata=test)
+  test.err <- RMSE(test$z,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=sombrero.rf$finalModel$ntree,
+                    row.names=c("rf")))
+}
+
+# Caret size optimized nnet 
+sombrero.nnet.run <- function(train, test) {
+  kfoldcv <- trainControl(method="cv", number=10)
+  exec.time <- system.time(
+    sombrero.nnet <<- train(z ~ ., data=train,
+                                method = "nnet", trControl=kfoldcv,
+                                linout = TRUE, maxit=5000))
+  # Training set performance
+  zvals <- predict(sombrero.nnet, newdata=train)
+  train.err <- RMSE(train$z,zvals)
+  # Test set performance
+  zvals <- predict(sombrero.nnet, newdata=test)
+  test.err <- RMSE(test$z,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=sombrero.nnet$bestTune[1][1,1],
+                    row.names=c("nnet")))
+}
+
+# Fixed size nnet 
+sombrero.nnet.fixed.run <- function(train, test) {
+  trc <- trainControl(method = "none")
+  exec.time <- system.time(
+    sombrero.nnet.fix <<- train(z ~ ., data=train,
+                        method = "nnet", tuneGrid = data.frame(size=100,decay=0), trControl=trc,
+                        linout = TRUE, maxit=5000))
+  # Training set performance
+  zvals <- predict(sombrero.nnet.fix, newdata=train)
+  train.err <- RMSE(train$z,zvals)
+  # Test set performance
+  zvals <- predict(sombrero.nnet.fix, newdata=test)
+  test.err <- RMSE(test$z,zvals)
+  return(data.frame("Train Set RMSE"=train.err, "Test Set RMSE"=test.err, "Execution time"=exec.time[3], 
+                    "Size"=sombrero.nnet.fix$bestTune[1][1,1],
+                    row.names=c("nnet.fix")))
+}
+
+sombrero.run.all <- function(plot=FALSE) {
+  
+  # Create training set. No noise. 
+  xmin <- ymin <- -10
+  xmax <- ymax <- 10
+  sombrero.data <- get.sombrero.samples(xrange=c(xmin,xmax), yrange=c(ymin,xmax), n.samples=300)
+  training <- as.data.frame(sombrero.data)
+  names(training) <- c( "x", "y", "z")
+  
+  # Create test&plot set.
+  xstep <- ystep <- 0.6 # Have to avoid (0,0) because it gives NaN for sombrero
+  x <- seq(xmin,xmax,xstep)
+  y <- seq(ymin,ymax,ystep)
+  l <- list(y,x)
+  plot.XYvals <- create.permutation.matrix(l)
+  fxy <- as.data.frame(plot.XYvals); names(fxy) <- c("x", "y")
+  z <- get.sombrero.3D(plot.XYvals[,1],plot.XYvals[,2])
+  test <- cbind(fxy, z)
+
+  # Run all models and get performance
+  sombrero.perf <- sombrero.inka.run(training, test)
+  sombrero.perf <- rbind(sombrero.perf, sombrero.knn.run(training, test))
+  sombrero.perf <- rbind(sombrero.perf, sombrero.rf.run(training, test))
+  sombrero.perf <- rbind(sombrero.perf, sombrero.nnet.fixed.run(training, test))
+  sombrero.perf <- rbind(sombrero.perf, sombrero.nnet.run(training, test))
+  
+  if ( plot ) {
+    z <- matrix(zvals <- predict.rbf(sombrero.rbf, newdata=test), nrow=length(x), ncol=length(y)); persp(x, y, z, main="INKA")
+    z <- matrix(zvals <- predict(sombrero.knn, newdata=test), nrow=length(x), ncol=length(y)); persp(x, y, z, main="knn")
+    z <- matrix(zvals <- predict(sombrero.rf, newdata=test), nrow=length(x), ncol=length(y)); persp(x, y, z, main="Random Forest")
+    z <- matrix(zvals <- predict(sombrero.nnet.fix, newdata=test), nrow=length(x), ncol=length(y)); persp(x, y, z, main="Fixed nnet")
+    z <- matrix(zvals <- predict(sombrero.nnet, newdata=test), nrow=length(x), ncol=length(y)); persp(x, y, z, main="nnet")
+  }
+
+  return(sombrero.perf)
 }
 

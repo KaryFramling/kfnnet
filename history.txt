@@ -11,6 +11,13 @@ TO-DO
   than in Java implementation. 
 - Make Adaline function "train.with.delta" work with vector delta values.
 
+2July2020
+---------
+- Implemented "xxx.run.all()" functions for sombrero and Boston, with corresponding
+  methods for training with INKA, nnet, GBM etc as applicable. So that now exists
+  for Iris, Breast Cancer, Sombrero and Boston, which should be sufficient for 
+  article. Remains to do repeated runs and generate boxplots on the results. 
+
 1July2020
 ---------
 - Wrote "predict.rbf <- function(rbf, newdata)" function for more caret-like
