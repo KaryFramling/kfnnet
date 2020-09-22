@@ -2,7 +2,7 @@
 # implemented as a "sub-class" of NeuralLayer, so the only thing to
 # add here is training methods. 
 #
-# Kary Främling, created September 2005
+# Kary Fr?mling, created September 2005
 #
 adaline.new <- function(nbrInputs, nbrOutputs, use.trace=FALSE) {
 
@@ -92,32 +92,32 @@ adaline.new <- function(nbrInputs, nbrOutputs, use.trace=FALSE) {
   return(methods)
 }
 
-test <- function() {
-  a <- adaline.new(2, 3)
-  class(a)
-  print(class(a))
-  print(a)
-  print(a$get.inputs())
-  inputs <- c(1, 1.5)
-  weights <- matrix(c(0, 0, 1, 1, 2, 2), 3, 2, byrow = T)
-  out <- a$eval(inputs)
-  print(out)
-  a$set.weights(weights)
-  out <- a$eval(inputs)
-  print(out)
-  print(a$get.weights())
-  print(a$get.inputs())
-  print(a$get.outputs())
-  print(a$get.lr())
-  print(a$set.lr(0.5))
-  print(a$get.lr())
-  print(a$get.inputs())
-  t <- c(1, 2, 3)
-  a$set.nlms(T)
-  a$train(t)
-  out <- a$eval(inputs)
-  print(out) # Should give 0.5, 2.25, 4
-  print(a$get.targets()) # Should give i, 2, 3
-}
+# test <- function() {
+#   a <- adaline.new(2, 3)
+#   class(a)
+#   print(class(a))
+#   print(a)
+#   print(a$get.inputs())
+#   inputs <- c(1, 1.5)
+#   weights <- matrix(c(0, 0, 1, 1, 2, 2), 3, 2, byrow = T)
+#   out <- a$eval(inputs)
+#   print(out)
+#   a$set.weights(weights)
+#   out <- a$eval(inputs)
+#   print(out)
+#   print(a$get.weights())
+#   print(a$get.inputs())
+#   print(a$get.outputs())
+#   print(a$get.lr())
+#   print(a$set.lr(0.5))
+#   print(a$get.lr())
+#   print(a$get.inputs())
+#   t <- c(1, 2, 3)
+#   a$set.nlms(T)
+#   a$train(t)
+#   out <- a$eval(inputs)
+#   print(out) # Should give 0.5, 2.25, 4
+#   print(a$get.targets()) # Should give i, 2, 3
+# }
 
 #test()

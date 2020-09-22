@@ -168,16 +168,16 @@ iris.caret.models <- function() {
 
 iris.inka.run <- function(train, test) {
   exec.time <- system.time(
-    rbf <- train.inka.formula(Species~., data=train, spread=0.1, max.iter=50, 
+    inka.iris <<- train.inka.formula(Species~., data=train, spread=0.1, max.iter=50, 
                               classification.error.limit=0))
-  nbr.hidden <- nrow(rbf$get.hidden()$get.weights()) # Number of hidden neurons
+  nbr.hidden <- nrow(inka.iris$get.hidden()$get.weights()) # Number of hidden neurons
   # Training set performance
-  y <- predict.rbf(rbf, newdata=train)
+  y <- predict.rbf(inka.iris, newdata=train)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+train[,'Species']) # One-hot encoding
   train.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
   # Test set performance
-  y <- predict.rbf(rbf, newdata=test)
+  y <- predict.rbf(inka.iris, newdata=test)
   classification <- (y == apply(y, 1, max)) * 1; 
   targets <- model.matrix(~0+test[,'Species']) # One-hot encoding
   test.err <- sum(abs(targets - classification)) / 2 # Simple calculation of how many mis-classified
@@ -229,17 +229,17 @@ iris.rf.run <- function(train, test) {
   kfoldcv <- trainControl(method="cv", number=10)
   performance_metric <- "Accuracy"
   exec.time <- system.time(
-    modelFit <- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+    rf.iris <<- train(Species~., data=iris, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
   )
   # Test set performance
-  predictions <- predict(modelFit, newdata=test)
+  predictions <- predict(rf.iris, newdata=test)
   test.err <- sum(predictions != test$Species)
   #confusionMatrix(predictions, test$Species) # Not needed here
   # Training set performance
-  predictions <- predict(modelFit, newdata=train)
+  predictions <- predict(rf.iris, newdata=train)
   train.err <- sum(predictions != train$Species)
   return(data.frame("Train Set Errors"=train.err,"Test Set Errors"=test.err,"Execution time"=exec.time[3], 
-                    "Size"=modelFit$finalModel$ntree,
+                    "Size"=rf.iris$finalModel$ntree,
                     row.names=c("rf")))
 }
 
@@ -309,19 +309,54 @@ iris.run.all <- function() {
   
   # Create training and test sets
   inTrain <- createDataPartition(y=iris$Species, p=0.75, list=FALSE) # 75% to train set
-  training <- iris[inTrain,]
-  test <- iris[-inTrain,]
+  iris.train <<- iris[inTrain,]
+  iris.test <<- iris[-inTrain,]
   
   # Run all models and get performance
-  iris.perf <- iris.inka.run(training, test)
-  iris.perf <- rbind(iris.perf, iris.best.inka.run(training, test))
-  iris.perf <- rbind(iris.perf, iris.lda.run(training, test))
-  iris.perf <- rbind(iris.perf, iris.rf.run(training, test))
-  iris.perf <- rbind(iris.perf, iris.gbm.run(training, test))
-  iris.perf <- rbind(iris.perf, iris.nnet.run(training, test))
-  iris.perf <- rbind(iris.perf, iris.nnet.fix.run(training, test))
+  iris.perf <- iris.inka.run(iris.train, iris.test)
+  iris.perf <- rbind(iris.perf, iris.best.inka.run(iris.train, iris.test))
+  iris.perf <- rbind(iris.perf, iris.lda.run(iris.train, iris.test))
+  iris.perf <- rbind(iris.perf, iris.rf.run(iris.train, iris.test))
+  iris.perf <- rbind(iris.perf, iris.gbm.run(iris.train, iris.test))
+  iris.perf <- rbind(iris.perf, iris.nnet.run(iris.train, iris.test))
+  iris.perf <- rbind(iris.perf, iris.nnet.fix.run(iris.train, iris.test))
 
   return(iris.perf)
 }
 
+# For INKA to work with LIME. Doesn't work yet...
+predict_model.RBF <- function(x, newdata, ...) {
+  p <- predict.rbf(x,newdata)
+  classification <- (p == apply(p, 1, max)) * 1;
+  m <- as.factor(classification[,2])
+  levels(m) <- c(0,1)
+  return(m)  
+}
+model_type.RBF <- function(x, ...) 'classification'
 
+# Lime
+iris.lime <- function() {
+  model <- rf.iris
+  instance <- iris.test[1,]
+  explainer <- lime(iris.train, model)
+  explanation <- explain(instance, explainer, n_labels = 3, n_features = 4)
+  plot_features(explanation)
+}
+
+# CIU
+iris.ciu <- function() {
+  model <- rf.iris
+  instance <- iris.test[1,1:4]
+  input.names <- c("Sepal Length", "Sepal width", "Petal Length", "Petal width") # In centimeters
+  output.names <- c("Setosa", "Versicolor", "Virginica")
+  in.mins <- apply(iris[,1:length(input.names)], 2, min)
+  in.maxs <- apply(iris[,1:length(input.names)], 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
+  ciu <- ciu.new(model, in.min.max.limits=c.minmax, abs.min.max=matrix(c(0,1,0,1,0,1), ncol = 2, byrow = T), 
+                 input.names=input.names, output.names=output.names)
+  par(mfrow=c(1,length(output.names)))
+  for ( out.ind in 1:length(output.names) ) {
+    ciu$barplot.CI.CU(inputs=instance, ind.output=out.ind)
+  }
+  par(mfrow=c(1,1))  #- reset to what it was before
+}

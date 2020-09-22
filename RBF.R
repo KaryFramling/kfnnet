@@ -279,15 +279,21 @@ find.best.inka <- function(n=1, train.inputs, train.outputs, max.iter=1,
 # 2. Matrix of input values
 # 3. Matrix of output/target values. 
 parse.formula.inka <- function(formula, data) {
-  d <- model.frame(formula=formula, data=data) # Do any default treatment on data first
   out.name <- formula[[2]] # We expect that output variable name is given
-  outputs <- d[, names(d)==out.name, drop = FALSE] # Extract output matrix
-  if ( is.factor(outputs[,1]) ) { # One-hot if factor
-    n <- levels(outputs[,1])
-    outputs <- model.matrix(~0+outputs[,1])
-    attr(outputs, "dimnames")[[2]] <- n
+  if ( sum(names(data)==out.name) > 0 ) {
+    d <- model.frame(formula=formula, data=data) # Do any default treatment on data first
+    outputs <- d[, names(d)==out.name, drop = FALSE] # Extract output matrix
+    if ( is.factor(outputs[,1]) ) { # One-hot if factor
+      n <- levels(outputs[,1])
+      outputs <- model.matrix(~0+outputs[,1])
+      attr(outputs, "dimnames")[[2]] <- n
+    }
   }
-  inputs <- (d[, names(d)!=out.name]) # Extract input matrix
+  else {
+    d <- data
+    outputs <- NULL
+  }
+  inputs <- (d[, names(d)!=out.name]) # Extract input matrix. We suppose there always has to be at least one input.
   inputs <- apply(inputs,2,as.numeric) # Just in case values became strings...
   return(list(out.name=out.name, inputs=inputs, outputs=outputs))
 }
@@ -321,7 +327,7 @@ find.best.inka.formula <- function(formula, data, ...) {
 predict.rbf <- function(rbf, newdata) {
   f <- rbf$get.formula()
   if ( is.null(f) )
-    stop("Formula has to be given before calling predict.inka.")
+    stop("Formula has to be given before calling predict.rbf.")
   pars <- parse.formula.inka(formula=f, data=newdata)
   inputs <- pars$inputs
   return(rbf$eval(inputs))

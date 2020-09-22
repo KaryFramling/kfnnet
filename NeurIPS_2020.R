@@ -364,6 +364,13 @@ Boston.Figures.NeurIPS.Supplementary <- function() {
                           main=paste("Row # ", bi[i], ", medv=", medv[i], "k$", sep=""))
   }
   
+  # Create CIU plots for crim
+  par(mar = c(5,5,1,1)) # c(bottom, left, top, right)
+  for ( i in 1:length(bi)) {
+    ciu.gbm.fa$plot.CI.CU(Boston[bi[i],1:n.in], ind.input=1, ind.output=1, n.points=40, ylab="medv", 
+                          main=paste("Row # ", bi[i], ", medv=", medv[i], "k$", sep=""))
+  }
+  
   par(mfrow=c(1,1))
   par(def.par)
 }

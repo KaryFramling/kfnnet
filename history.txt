@@ -5,11 +5,25 @@ TO-DO
 -----
 
 - Optimize implementation of some RBF functions, now there are still some loops there. 
+- Get LIME to work with INKA. 
 - Shorten methods barplot.CI.CU / pie.CI.CU, now too much code replicated. 
 - Implement possibility for greedy exploration after some episode 
   limit - or more freely, which should be easier in "R" implementation 
   than in Java implementation. 
 - Make Adaline function "train.with.delta" work with vector delta values.
+
+4July2020
+---------
+- Fighting to get LIME to work with INKA. Still doesn't work...
+
+3July2020
+---------
+- Spent some time to understand why CIU didn't work with Portilla's Advertisement
+  data set and LDA. Apparently necessary to convert CIU random value matrix into 
+  vector if only one input is target of CIU - but strange why this is a problem 
+  only now with this data set? Also, spent some time to fix the fact that apparently 
+  there automatically came two outputs for the two different output options - my own 
+  bug, lack of thought of trying to be too quick...
 
 2July2020
 ---------

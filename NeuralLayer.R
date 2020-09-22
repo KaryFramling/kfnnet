@@ -137,20 +137,20 @@ neural.layer.new <- function(nbrInputs, nbrOutputs, activation.function, output.
   return(pub)
 }
 
-test <- function() {
-  l <- neural.layer.new(2, 1, weighted.sum.activation, identity.output.function)
-  l$set.weights(matrix(c(1, 2), nrow=1, ncol=2))
-  out <- l$eval(c(1, 1))
-  print(out)
-
-  # Test squared distance
-  l <- neural.layer.new(1, 2, squared.distance.activation, imqe.output.function)
-  l$set.weights(matrix(c(1, 2), nrow=2, ncol=1, byrow=T))
-  l$set.spread(1.0)
-  out <- l$eval(c(2))
-  print(out)
-
-}
+# test <- function() {
+#   l <- neural.layer.new(2, 1, weighted.sum.activation, identity.output.function)
+#   l$set.weights(matrix(c(1, 2), nrow=1, ncol=2))
+#   out <- l$eval(c(1, 1))
+#   print(out)
+# 
+#   # Test squared distance
+#   l <- neural.layer.new(1, 2, squared.distance.activation, imqe.output.function)
+#   l$set.weights(matrix(c(1, 2), nrow=2, ncol=1, byrow=T))
+#   l$set.spread(1.0)
+#   out <- l$eval(c(2))
+#   print(out)
+# 
+# }
 
 #test()
 #s<-seq(0,100,0.1)
