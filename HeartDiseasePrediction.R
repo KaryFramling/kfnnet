@@ -18,16 +18,17 @@ convert.magic <- function(obj, types) {
 }
 
 # Experiments with Heart Disease prediction data
-heart.data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data",header=FALSE,sep=",",na.strings = '?')
+orig.heart.data <- heart.data <- read.csv("https://archive.ics.uci.edu/ml/machine-learning-databases/heart-disease/processed.cleveland.data",header=FALSE,sep=",",na.strings = '?')
 names(heart.data) <- c( "age", "sex", "cp", "trestbps", "chol","fbs", "restecg",
                         "thalach","exang", "oldpeak","slope", "ca", "thal", "num")
 
 # Only two classes, heart disease or not. Would it be worth having more? 
 # Original data has 0-4 but no clue what is difference for 1-4.
 heart.data$num[heart.data$num > 0] <- 1
+heart.data$num <- as.factor(heart.data$num)
 # change a few predictor variables from integer to factors (make dummies)
-chclass <-c("numeric","factor","factor","numeric","numeric","factor","factor","numeric","factor","numeric","factor","factor","factor","factor")
-heart.data <- convert.magic(heart.data,chclass)
+#chclass <-c("numeric","factor","factor","numeric","numeric","factor","factor","numeric","factor","numeric","factor","factor","factor","factor")
+#heart.data <- convert.magic(heart.data,chclass)
 
 # Omit 6 rows with NA values.
 heart.data <- na.omit(heart.data)
@@ -190,10 +191,45 @@ heart.disease.inka <- function(n.rbfs.to.test=1) {
   return(rbf) # Return trained RBF network
 }
 
-rbf.inka <- heart.disease.inka()
+#rbf.inka <- heart.disease.inka()
 
-row.names <- names(Accuracy)
-col.names <- c("AUC", "Accuracy")
-cbind(as.data.frame(matrix(c(AUC,Accuracy),nrow = length(row.names), ncol = 2,
-                           dimnames = list(row.names, col.names))))
+#row.names <- names(Accuracy)
+#col.names <- c("AUC", "Accuracy")
+#cbind(as.data.frame(matrix(c(AUC,Accuracy),nrow = length(row.names), ncol = 2,
+#                           dimnames = list(row.names, col.names))))
 
+# Lime
+HeartDisease.lime <- function(inst.ind=1) {
+  require(lime)
+  model <- boostModel
+  instance <- heart.data[inst.ind,]
+  explainer <- lime(heart.data, model)
+  explanation <- explain(instance, explainer, n_labels = 2, n_features = 13)
+  plot_features(explanation)
+}
+
+# CIU
+HeartDisease.CIU <- function(inst.ind=1) {
+  source("ContextualImportanceUtility.R")
+  n.in <- ncol(heart.data) - 1
+  in.mins <- apply(heart.data[,1:n.in], 2, min)
+  in.maxs <- apply(heart.data[,1:n.in], 2, max)
+  c.minmax <- cbind(in.mins, in.maxs)
+  out.range <- matrix(c(0,1,0,1),ncol=2,byrow=T)
+  
+  # We don't care about train/test set in this case because it's not about evaluating training performance.
+  ciu.boost <- ciu.new(boostModel, in.min.max.limits=c.minmax, abs.min.max=out.range, 
+                       input.names=names(heart.data)[1:n.in], output.names=c("No Heart Disease","Heart Disease Present")) #names(heart.data)[n.in+1])
+  def.par <- par(no.readonly = TRUE) # save default, for resetting...
+  par(mfrow=c(1,2))
+  ciu.boost$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
+  ciu.boost$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
+  ciu.boost$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
+  ciu.boost$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
+  par(mfrow=c(1,1))
+  for ( i in 1:n.in ) {
+    ciu.boost$plot.CI.CU(heart.data[inst.ind,1:n.in], ind.input=i, ind.output=2)
+  }
+  par(mfrow=c(1,1))
+  par(def.par)
+}

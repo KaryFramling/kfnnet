@@ -336,6 +336,7 @@ model_type.RBF <- function(x, ...) 'classification'
 
 # Lime
 iris.lime <- function() {
+  require(lime)
   model <- rf.iris
   instance <- iris.test[1,]
   explainer <- lime(iris.train, model)

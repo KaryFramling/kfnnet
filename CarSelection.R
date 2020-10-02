@@ -1,6 +1,6 @@
 # Data for car selections used in Kary Framling's PhD thesis. 
 # The raw data on the 113 cars for the car selection problem. 
-%
+
 
 car.data = matrix(c(
 137500, 132, 4, 3, 9.00, 290, 1070, 198, 29.50, 8.00, 2, 2, 44, 
