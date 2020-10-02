@@ -66,6 +66,11 @@ RFConfMat <- confusionMatrix(RFPrediction, testData[,"num"])
 AUC$RF <- roc(as.numeric(testData$num),as.numeric(as.matrix((RFPredictionprob))))$auc
 Accuracy$RF <- RFConfMat$overall['Accuracy'] 
 
+# Random Forest with caret, makes LIME use simpler. 
+kfoldcv <- trainControl(method="cv", number=10)
+performance_metric <- "Accuracy"
+rf.heartdisease <- train(num~., data=trainData, method="rf", metric=performance_metric, trControl=kfoldcv,preProcess=c("center", "scale"))
+
 # Boosted tree model with tuning (grid search)
 # Boosted tree model (gbm) with adjusting learning rate and and trees.
 set.seed(10)
@@ -201,7 +206,8 @@ heart.disease.inka <- function(n.rbfs.to.test=1) {
 # Lime
 HeartDisease.lime <- function(inst.ind=1) {
   require(lime)
-  model <- boostModel
+#  model <- boostModel
+  model <- rf.heartdisease
   instance <- heart.data[inst.ind,]
   explainer <- lime(heart.data, model)
   explanation <- explain(instance, explainer, n_labels = 2, n_features = 13)
@@ -218,18 +224,29 @@ HeartDisease.CIU <- function(inst.ind=1) {
   out.range <- matrix(c(0,1,0,1),ncol=2,byrow=T)
   
   # We don't care about train/test set in this case because it's not about evaluating training performance.
-  ciu.boost <- ciu.new(boostModel, in.min.max.limits=c.minmax, abs.min.max=out.range, 
+  ciu.rf <<- ciu.new(rf.heartdisease, in.min.max.limits=c.minmax, abs.min.max=out.range, 
                        input.names=names(heart.data)[1:n.in], output.names=c("No Heart Disease","Heart Disease Present")) #names(heart.data)[n.in+1])
+  #print(ciu.rf$explain(heart.data[inst.ind,1:n.in], ind.inputs.to.explain=1:n.in))
   def.par <- par(no.readonly = TRUE) # save default, for resetting...
   par(mfrow=c(1,2))
-  ciu.boost$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
-  ciu.boost$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
-  ciu.boost$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
-  ciu.boost$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
+  ciu.rf$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
+  ciu.rf$barplot.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
+  ciu.rf$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=1, sort="CI")
+  ciu.rf$pie.CI.CU(heart.data[inst.ind,1:n.in], ind.output=2, sort="CI")
   par(mfrow=c(1,1))
   for ( i in 1:n.in ) {
-    ciu.boost$plot.CI.CU(heart.data[inst.ind,1:n.in], ind.input=i, ind.output=2)
+    ciu.rf$plot.CI.CU(heart.data[inst.ind,1:n.in], ind.input=i, ind.output=2)
   }
   par(mfrow=c(1,1))
   par(def.par)
 }
+
+# Get the "standard" global importance estimate for all inputs
+varImp(rf.heartdisease,scale = FALSE)
+
+# Also do a feature significance test using Recursive Feature Elimination
+control <- rfeControl(functions=rfFuncs, method="cv", number=10) # define the control using a random forest selection function
+results <- rfe(heart.data[,1:13], heart.data[,14], sizes=c(1:13), rfeControl=control) # run the RFE algorithm
+print(results) # summarize the results
+predictors(results) # list the chosen features
+plot(results, type=c("g", "o")) # plot the results
